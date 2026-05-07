@@ -5,7 +5,21 @@ export async function POST(request: Request) {
   try {
     const { spreadsheetId, range: inputRange, googleCredentials } = await request.json();
     
-    const credentials = googleCredentials ? JSON.parse(googleCredentials) : JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}');
+    if (!spreadsheetId || !inputRange) {
+      return NextResponse.json({ error: 'Thiếu Spreadsheet ID hoặc Tab Name' }, { status: 400 });
+    }
+
+    let credentials;
+    try {
+      credentials = googleCredentials ? JSON.parse(googleCredentials) : (process.env.GOOGLE_CREDENTIALS ? JSON.parse(process.env.GOOGLE_CREDENTIALS) : null);
+    } catch (e) {
+      return NextResponse.json({ error: 'Định dạng JSON của Google Credentials không hợp lệ' }, { status: 400 });
+    }
+
+    if (!credentials) {
+      return NextResponse.json({ error: 'Chưa cung cấp Google Credentials (JSON)' }, { status: 400 });
+    }
+
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
