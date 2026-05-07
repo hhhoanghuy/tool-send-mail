@@ -4,10 +4,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import 'react-quill-new/dist/quill.snow.css';
 
-const ReactQuill = dynamic(() => import('react-quill-new'), { 
+const ComponentWithNoSSR = dynamic(() => import('react-quill-new'), { 
   ssr: false,
   loading: () => <div style={{ height: '300px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px' }}>Đang tải bộ soạn thảo...</div>
-});
+}) as any;
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
@@ -289,8 +289,7 @@ export default function Dashboard() {
             <div className="quill-container" onClick={() => setLastFocused('template')} style={{ marginBottom: '1rem' }}>
               {editorMode === 'rich' ? (
                 mounted ? (
-                  {/* @ts-ignore */}
-                  <ReactQuill 
+                  <ComponentWithNoSSR 
                     ref={quillRef}
                     theme="snow" 
                     value={template} 
