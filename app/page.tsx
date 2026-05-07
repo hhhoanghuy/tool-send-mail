@@ -107,7 +107,28 @@ export default function Dashboard() {
     const config = { spreadsheetId, sheetName, emailColumn, statusColumn, subject, template, startRow, autoPilot: isAuto, fileInfo, emailUser, emailPass, googleCredentials };
     await fetch('/api/config', { method: 'POST', body: JSON.stringify(config), headers: { 'Content-Type': 'application/json' } });
     setAutoPilot(isAuto);
-    alert(isAuto ? 'Đã bật Tự động!' : 'Đã lưu cấu hình!');
+    alert(isAuto ? '✅ Đã bật chế độ gửi Tự động!' : '✅ Đã lưu cấu hình thành công!');
+  };
+
+  const verifyConnection = async () => {
+    setIsSending(true);
+    try {
+      const res = await fetch('/api/config/verify', {
+        method: 'POST',
+        body: JSON.stringify({ emailUser, emailPass, googleCredentials }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('🚀 Tuyệt vời! Cấu hình của bạn hoàn toàn chính xác.\nHệ thống đã gửi 1 email test đến: ' + emailUser);
+      } else {
+        alert('❌ Lỗi: ' + data.error);
+      }
+    } catch (err) {
+      alert('❌ Không thể kết nối với Server!');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const connectToSheet = async () => {
@@ -214,22 +235,49 @@ export default function Dashboard() {
             <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '8px' }}>* Lưu ý: Sử dụng App Password của Google. Nếu để trống sẽ dùng mặc định trong .env</p>
             
             <div style={{ marginTop: '1.2rem' }}>
-              <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Google Service Account JSON (Để đọc Sheets):</label>
+              <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Google Service Account JSON (Dán nội dung file .json):</label>
               <textarea 
                 value={googleCredentials} 
                 onChange={e => setGoogleCredentials(e.target.value)} 
                 placeholder='{"type": "service_account", ...}'
                 style={{ marginTop: '5px', height: '80px', fontFamily: 'monospace', fontSize: '0.75rem' }}
               />
-              <div style={{ background: '#fff9db', padding: '10px', borderRadius: '8px', marginTop: '8px', border: '1px solid #ffe066' }}>
-                <p style={{ margin: 0, fontSize: '0.75rem', color: '#856404', fontWeight: 600 }}>💡 Hướng dẫn nhanh:</p>
-                <ol style={{ margin: '5px 0 0 0', paddingLeft: '15px', fontSize: '0.7rem', color: '#856404' }}>
-                  <li>Vào <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer">Google Cloud Console</a> tạo Project.</li>
-                  <li>Bật <b>Google Sheets API</b> và <b>Gmail API</b>.</li>
-                  <li>Tạo <b>Service Account</b>, tải file JSON Key và dán nội dung vào ô trên.</li>
-                  <li>Chia sẻ quyền <b>Viewer/Editor</b> cho email của Service Account trong file Google Sheet của bạn.</li>
-                  <li>Lấy <b>App Password</b> Gmail tại <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">đây</a> để điền vào mục Email gửi.</li>
-                </ol>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '1rem' }}>
+              <button className="btn-primary" style={{ flex: 1, background: '#10b981' }} onClick={verifyConnection} disabled={isSending}>
+                {isSending ? 'Đang kiểm tra...' : '🔍 Kiểm tra & Xác thực'}
+              </button>
+              <button className="btn-primary" style={{ flex: 1, background: '#6366f1' }} onClick={() => saveConfig(false)}>
+                💾 Lưu cấu hình
+              </button>
+            </div>
+
+            <div style={{ background: '#f0f9ff', padding: '15px', borderRadius: '12px', marginTop: '1.2rem', border: '1px solid #bae6fd' }}>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#0369a1', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                📖 Hướng dẫn cấu hình 5 bước nhanh:
+              </p>
+              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#334155' }}>
+                  <span style={{ minWidth: '20px', height: '20px', background: '#0ea5e9', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>1</span>
+                  <span>Tạo Project & bật <b>Google Sheets API</b> tại <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer" style={{ color: '#0284c7', fontWeight: 600 }}>Google Cloud</a>.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#334155' }}>
+                  <span style={{ minWidth: '20px', height: '20px', background: '#0ea5e9', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>2</span>
+                  <span>Tạo <b>Service Account</b>, tải file JSON và dán nội dung vào ô trên.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#334155' }}>
+                  <span style={{ minWidth: '20px', height: '20px', background: '#0ea5e9', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>3</span>
+                  <span><b>QUAN TRỌNG:</b> Share quyền <b>Viewer</b> file Sheet cho email của Service Account.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#334155' }}>
+                  <span style={{ minWidth: '20px', height: '20px', background: '#0ea5e9', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>4</span>
+                  <span>Lấy <b>App Password</b> Gmail (16 ký tự) tại <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" style={{ color: '#0284c7', fontWeight: 600 }}>đây</a>.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#334155' }}>
+                  <span style={{ minWidth: '20px', height: '20px', background: '#0ea5e9', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>5</span>
+                  <span>Điền thông tin, nhấn <b>Kiểm tra & Xác thực</b> để hệ thống tự động kiểm tra lỗi.</span>
+                </div>
               </div>
             </div>
           </section>
