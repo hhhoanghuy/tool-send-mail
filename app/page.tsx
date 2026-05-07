@@ -55,10 +55,22 @@ export default function Dashboard() {
         setEmailColumn(data.emailColumn); setStatusColumn(data.statusColumn);
         setSubject(data.subject); setTemplate(data.template);
         setAutoPilot(data.autoPilot); setStartRow(data.startRow || 5);
-        setEmailUser(data.emailUser || ''); setEmailPass(data.emailPass || '');
-        setGoogleCredentials(data.googleCredentials || '');
         if (data.fileInfo) setFileInfo(data.fileInfo);
       }
+      
+      // Ưu tiên lấy từ trình duyệt trước (LocalStorage) để đảm bảo không phải nhập lại
+      const localUser = localStorage.getItem('emailUser');
+      const localPass = localStorage.getItem('emailPass');
+      const localJSON = localStorage.getItem('googleCredentials');
+      
+      if (localUser) setEmailUser(localUser);
+      else if (data.emailUser) setEmailUser(data.emailUser);
+      
+      if (localPass) setEmailPass(localPass);
+      else if (data.emailPass) setEmailPass(data.emailPass);
+      
+      if (localJSON) setGoogleCredentials(localJSON);
+      else if (data.googleCredentials) setGoogleCredentials(data.googleCredentials);
     });
   }, []);
 
@@ -106,8 +118,29 @@ export default function Dashboard() {
   const saveConfig = async (isAuto: boolean) => {
     const config = { spreadsheetId, sheetName, emailColumn, statusColumn, subject, template, startRow, autoPilot: isAuto, fileInfo, emailUser, emailPass, googleCredentials };
     await fetch('/api/config', { method: 'POST', body: JSON.stringify(config), headers: { 'Content-Type': 'application/json' } });
+    
+    // Lưu vào trình duyệt
+    localStorage.setItem('emailUser', emailUser);
+    localStorage.setItem('emailPass', emailPass);
+    localStorage.setItem('googleCredentials', googleCredentials);
+    
     setAutoPilot(isAuto);
-    alert(isAuto ? '✅ Đã bật chế độ gửi Tự động!' : '✅ Đã lưu cấu hình thành công!');
+    alert(isAuto ? '✅ Đã bật chế độ gửi Tự động!' : '✅ Đã kết nối & Lưu cấu hình thành công!');
+  };
+
+  const deleteConfig = async () => {
+    if (!confirm('Bạn có chắc chắn muốn xóa sạch cấu hình không?')) return;
+    
+    const emptyConfig = { spreadsheetId: '', sheetName: '', emailColumn: '', statusColumn: '', subject: '', template: '', startRow: 5, autoPilot: false, fileInfo: null, emailUser: '', emailPass: '', googleCredentials: '' };
+    await fetch('/api/config', { method: 'POST', body: JSON.stringify(emptyConfig), headers: { 'Content-Type': 'application/json' } });
+    
+    localStorage.removeItem('emailUser');
+    localStorage.removeItem('emailPass');
+    localStorage.removeItem('googleCredentials');
+    
+    setEmailUser(''); setEmailPass(''); setGoogleCredentials('');
+    setSpreadsheetId(''); setSheetName(''); setHeaders([]);
+    alert('🗑️ Đã xóa toàn bộ cấu hình!');
   };
 
   const verifyConnection = async () => {
@@ -249,7 +282,10 @@ export default function Dashboard() {
                 {isSending ? 'Đang kiểm tra...' : '🔍 Kiểm tra & Xác thực'}
               </button>
               <button className="btn-primary" style={{ flex: 1, background: '#6366f1' }} onClick={() => saveConfig(false)}>
-                💾 Lưu cấu hình
+                🔗 Kết nối & Lưu
+              </button>
+              <button className="btn-primary" style={{ flex: 0.5, background: '#ef4444' }} onClick={deleteConfig}>
+                🗑️ Xóa
               </button>
             </div>
 
