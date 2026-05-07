@@ -59,17 +59,39 @@ export default function Dashboard() {
       }
       
       // Ưu tiên lấy từ trình duyệt trước (LocalStorage) để đảm bảo không phải nhập lại
-      const localUser = localStorage.getItem('emailUser');
-      const localPass = localStorage.getItem('emailPass');
-      const localJSON = localStorage.getItem('googleCredentials');
-      
-      if (localUser) setEmailUser(localUser);
+      const localData: any = {};
+      ['spreadsheetId', 'sheetName', 'emailColumn', 'statusColumn', 'subject', 'template', 'startRow', 'emailUser', 'emailPass', 'googleCredentials'].forEach(key => {
+        localData[key] = localStorage.getItem(key);
+      });
+
+      if (localData.spreadsheetId) setSpreadsheetId(localData.spreadsheetId);
+      else if (data.spreadsheetId) setSpreadsheetId(data.spreadsheetId);
+
+      if (localData.sheetName) setSheetName(localData.sheetName);
+      else if (data.sheetName) setSheetName(data.sheetName);
+
+      if (localData.emailColumn) setEmailColumn(localData.emailColumn);
+      else if (data.emailColumn) setEmailColumn(data.emailColumn);
+
+      if (localData.statusColumn) setStatusColumn(localData.statusColumn);
+      else if (data.statusColumn) setStatusColumn(data.statusColumn);
+
+      if (localData.subject) setSubject(localData.subject);
+      else if (data.subject) setSubject(data.subject);
+
+      if (localData.template) setTemplate(localData.template);
+      else if (data.template) setTemplate(data.template);
+
+      if (localData.startRow) setStartRow(Number(localData.startRow));
+      else if (data.startRow) setStartRow(data.startRow);
+
+      if (localData.emailUser) setEmailUser(localData.emailUser);
       else if (data.emailUser) setEmailUser(data.emailUser);
-      
-      if (localPass) setEmailPass(localPass);
+
+      if (localData.emailPass) setEmailPass(localData.emailPass);
       else if (data.emailPass) setEmailPass(data.emailPass);
-      
-      if (localJSON) setGoogleCredentials(localJSON);
+
+      if (localData.googleCredentials) setGoogleCredentials(localData.googleCredentials);
       else if (data.googleCredentials) setGoogleCredentials(data.googleCredentials);
     });
   }, []);
@@ -119,7 +141,14 @@ export default function Dashboard() {
     const config = { spreadsheetId, sheetName, emailColumn, statusColumn, subject, template, startRow, autoPilot: isAuto, fileInfo, emailUser, emailPass, googleCredentials };
     await fetch('/api/config', { method: 'POST', body: JSON.stringify(config), headers: { 'Content-Type': 'application/json' } });
     
-    // Lưu vào trình duyệt
+    // Lưu toàn bộ vào trình duyệt
+    localStorage.setItem('spreadsheetId', spreadsheetId);
+    localStorage.setItem('sheetName', sheetName);
+    localStorage.setItem('emailColumn', emailColumn);
+    localStorage.setItem('statusColumn', statusColumn);
+    localStorage.setItem('subject', subject);
+    localStorage.setItem('template', template);
+    localStorage.setItem('startRow', String(startRow));
     localStorage.setItem('emailUser', emailUser);
     localStorage.setItem('emailPass', emailPass);
     localStorage.setItem('googleCredentials', googleCredentials);
@@ -134,12 +163,12 @@ export default function Dashboard() {
     const emptyConfig = { spreadsheetId: '', sheetName: '', emailColumn: '', statusColumn: '', subject: '', template: '', startRow: 5, autoPilot: false, fileInfo: null, emailUser: '', emailPass: '', googleCredentials: '' };
     await fetch('/api/config', { method: 'POST', body: JSON.stringify(emptyConfig), headers: { 'Content-Type': 'application/json' } });
     
-    localStorage.removeItem('emailUser');
-    localStorage.removeItem('emailPass');
-    localStorage.removeItem('googleCredentials');
+    // Xóa sạch LocalStorage
+    localStorage.clear();
     
     setEmailUser(''); setEmailPass(''); setGoogleCredentials('');
     setSpreadsheetId(''); setSheetName(''); setHeaders([]);
+    setSubject(''); setTemplate(''); setStartRow(5);
     alert('🗑️ Đã xóa toàn bộ cấu hình!');
   };
 
