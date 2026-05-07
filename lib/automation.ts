@@ -52,12 +52,17 @@ export async function runAutomatedCampaign() {
     const status = row[statusIdx] ? String(row[statusIdx]).trim() : '';
 
     if (email && email.includes('@') && !status.includes('SENT')) {
-      const rowData: any = {};
-      cleanHeaders.forEach((h, idx) => { if(h) rowData[h] = row[idx] !== undefined ? String(row[idx]).trim() : ''; });
+      const personalize = (text: string) => {
+        return text.replace(/{{(.*?)}}/g, (match, p1) => {
+          const target = p1.trim().toLowerCase();
+          const colIndex = cleanHeaders.findIndex(h => h.trim().toLowerCase() === target);
+          return colIndex !== -1 ? row[colIndex] : match;
+        });
+      };
 
-      const finalSubject = replacePlaceholders(subject, rowData);
-      const finalHtml = formatEmailBody(template, rowData);
-      
+      const finalSubject = personalize(subject);
+      const finalHtml = personalize(template);
+
       const attachments = fileInfo ? [
         {
           filename: fileInfo.name,
@@ -72,8 +77,8 @@ export async function runAutomatedCampaign() {
           subject: finalSubject,
           html: finalHtml,
           attachments,
-          emailUser,
-          emailPass
+          emailUser: emailUser || undefined,
+          emailPass: emailPass || undefined
         });
 
         const colLetter = columnToLetter(statusIdx);

@@ -5,22 +5,22 @@ export async function POST(request: Request) {
   try {
     const { recipient, subject, template, data, fileData, fileName, emailUser, emailPass } = await request.json();
 
-    const htmlBody = formatEmailBody(template, data);
-    const mailSubject = replacePlaceholders(subject, data);
+    const personalize = (text: string) => {
+      return text.replace(/{{(.*?)}}/g, (match, p1) => {
+        const target = p1.trim().toLowerCase();
+        const key = Object.keys(data).find(k => k.trim().toLowerCase() === target);
+        return key ? data[key] : match;
+      });
+    };
 
-    const attachments = fileData ? [
-      {
-        filename: fileName,
-        content: fileData.split("base64,")[1],
-        encoding: 'base64'
-      }
-    ] : [];
+    const finalSubject = personalize(subject);
+    const finalHtml = personalize(template);
 
-    await sendMail({
+    const success = await sendMail({
       to: recipient,
-      subject: mailSubject,
-      html: htmlBody,
-      attachments,
+      subject: finalSubject,
+      html: finalHtml,
+      attachments: fileData ? [{ filename: fileName, content: fileData.split(',')[1], encoding: 'base64' }] : [],
       emailUser,
       emailPass
     });
