@@ -197,20 +197,24 @@ export default function Dashboard() {
       setProgress({ current: 0, total: rows.length, success: 0, failed: 0 });
 
       for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row[emailColumn]) continue;
-        if (skipSent && row[statusColumn]?.includes('SENT')) {
+        const emailIdx = headers.indexOf(emailColumn);
+        const statusIdx = headers.indexOf(statusColumn);
+        if (!row[emailIdx]) continue;
+        if (skipSent && statusIdx !== -1 && row[statusIdx]?.includes('SENT')) {
           setProgress(p => ({ ...p, current: i + 1 }));
-          setLogs(prev => [{ email: row[emailColumn], status: 'BỎ QUA' }, ...prev.slice(0, 9)]);
+          setLogs(prev => [{ email: row[emailIdx], status: 'BỎ QUA' }, ...prev.slice(0, 9)]);
           continue;
         }
+        const rowDataObject: any = {};
+        headers.forEach((h, idx) => { if (h) rowDataObject[h] = row[idx]; });
+
         const sendRes = await fetch('/api/send', { 
           method: 'POST', 
           body: JSON.stringify({ 
-            recipient: row[emailColumn], 
+            recipient: row[headers.indexOf(emailColumn)], 
             subject, 
             template, 
-            data: row, 
+            data: rowDataObject, 
             fileData: fileInfo?.data, 
             fileName: fileInfo?.name,
             emailUser,
@@ -228,7 +232,7 @@ export default function Dashboard() {
           });
         }
         setProgress(p => ({ ...p, current: i + 1, success: result.success ? p.success + 1 : p.success, failed: result.success ? p.failed : p.failed + 1 }));
-        setLogs(prev => [{ email: row[emailColumn], status: result.success ? 'XONG' : 'LỖI' }, ...prev.slice(0, 9)]);
+        setLogs(prev => [{ email: row[emailIdx], status: result.success ? 'XONG' : 'LỖI' }, ...prev.slice(0, 9)]);
       }
     } catch (err) { alert('Lỗi!'); } finally { setIsSending(false); }
   };
