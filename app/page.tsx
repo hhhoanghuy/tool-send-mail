@@ -165,13 +165,22 @@ export default function Dashboard() {
   };
 
   const connectToSheet = async () => {
-    const res = await fetch('/api/sheets/headers', {
-      method: 'POST',
-      body: JSON.stringify({ spreadsheetId, range: sheetName, googleCredentials }),
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-    if (data.headers) setHeaders(data.headers);
+    try {
+      const res = await fetch('/api/sheets/headers', {
+        method: 'POST',
+        body: JSON.stringify({ spreadsheetId, range: sheetName, googleCredentials }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.headers) {
+        setHeaders(data.headers);
+        alert('✅ Đã kết nối Sheet thành công! Hãy chọn các cột ánh xạ bên dưới.');
+      } else {
+        alert('❌ Lỗi: ' + (data.error || 'Không thể lấy dữ liệu tiêu đề'));
+      }
+    } catch (err) {
+      alert('❌ Lỗi kết nối đến máy chủ!');
+    }
   };
 
   const startManualCampaign = async () => {
