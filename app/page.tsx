@@ -289,6 +289,7 @@ export default function Dashboard() {
             <div className="quill-container" onClick={() => setLastFocused('template')} style={{ marginBottom: '1rem' }}>
               {editorMode === 'rich' ? (
                 mounted ? (
+                  {/* @ts-ignore */}
                   <ReactQuill 
                     ref={quillRef}
                     theme="snow" 
