@@ -54,7 +54,8 @@ export async function runAutomatedCampaign() {
     if (email && email.includes('@') && !status.includes('SENT')) {
       const personalize = (text: string) => {
         return text.replace(/{{(.*?)}}/g, (match, p1) => {
-          const target = p1.trim().toLowerCase();
+          const cleanP1 = p1.replace(/<[^>]*>?/gm, '');
+          const target = cleanP1.trim().toLowerCase();
           const colIndex = cleanHeaders.findIndex(h => h.trim().toLowerCase() === target);
           return colIndex !== -1 ? row[colIndex] : match;
         });

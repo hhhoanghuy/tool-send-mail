@@ -7,7 +7,9 @@ export async function POST(request: Request) {
 
     const personalize = (text: string) => {
       return text.replace(/{{(.*?)}}/g, (match, p1) => {
-        const target = p1.trim().toLowerCase();
+        // Loại bỏ các thẻ HTML nếu người dùng lỡ định dạng bên trong {{...}}
+        const cleanP1 = p1.replace(/<[^>]*>?/gm, '');
+        const target = cleanP1.trim().toLowerCase();
         const key = Object.keys(data).find(k => k.trim().toLowerCase() === target);
         return key ? data[key] : match;
       });
