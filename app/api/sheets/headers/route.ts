@@ -32,16 +32,17 @@ export async function POST(request: Request) {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `'${exactSheetName}'!A1:Z10`,
+      range: `${exactSheetName}!A1:Z10`,
     });
 
     const allRows = response.data.values || [];
-    const headerRow = allRows.find(row => row.map(c => String(c).toLowerCase()).includes('email')) || [];
+    const headerRow = allRows.find(row => 
+      row.some(cell => String(cell).toLowerCase().trim().includes('email'))
+    ) || allRows[0] || [];
 
-    // Làm sạch tiêu đề (Trim)
-    const processedHeaders = headerRow.map((h: string) => h ? String(h).trim() : '');
+    const headers = headerRow.map(h => String(h).trim());
 
-    return NextResponse.json({ headers: processedHeaders });
+    return NextResponse.json({ headers });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
