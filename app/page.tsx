@@ -231,6 +231,7 @@ export default function Dashboard() {
       setProgress({ current: 0, total: rows.length, success: 0, failed: 0 });
 
       for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
         const emailIdx = headers.indexOf(emailColumn);
         const statusIdx = headers.indexOf(statusColumn);
         if (!row[emailIdx]) continue;
