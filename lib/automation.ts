@@ -54,9 +54,18 @@ export async function runAutomatedCampaign() {
     if (email && email.includes('@') && !status.includes('SENT')) {
       const personalize = (text: string | null | undefined) => {
         if (!text) return '';
+        const slugify = (str: string) => {
+          return str.normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
+        };
+
         return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-          const cleanP1 = p1.replace(/<[^>]*>?/gm, '').trim().toLowerCase().replace(/\s+/g, '');
-          const colIndex = cleanHeaders.findIndex(h => h.trim().toLowerCase().replace(/\s+/g, '') === cleanP1);
+          const cleanP1 = p1.replace(/<[^>]*>?/gm, '');
+          const target = slugify(cleanP1);
+          const colIndex = cleanHeaders.findIndex(h => slugify(h) === target);
           return colIndex !== -1 && row[colIndex] !== undefined ? String(row[colIndex]) : match;
         });
       };

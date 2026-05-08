@@ -7,15 +7,23 @@ export async function POST(request: Request) {
 
     const personalize = (text: string | null | undefined) => {
       if (!text) return '';
+      
+      // Hàm loại bỏ dấu tiếng Việt và ký tự đặc biệt để so khớp chuẩn xác
+      const slugify = (str: string) => {
+        return str.normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+      };
+
       return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-        const cleanP1 = p1.replace(/<[^>]*>?/gm, '').trim().toLowerCase().replace(/\s+/g, '');
+        const cleanP1 = p1.replace(/<[^>]*>?/gm, ''); // Bỏ HTML
+        const target = slugify(cleanP1);
         
         if (!data || typeof data !== 'object') return match;
 
-        const key = Object.keys(data).find(k => {
-          const cleanK = k.trim().toLowerCase().replace(/\s+/g, '');
-          return cleanK === cleanP1;
-        });
+        const key = Object.keys(data).find(k => slugify(k) === target);
 
         if (key && data[key] !== undefined && data[key] !== null) {
           return String(data[key]);
