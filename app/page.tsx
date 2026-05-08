@@ -251,21 +251,41 @@ export default function Dashboard() {
           setLogs(prev => [{ email: row[emailIdx], status: 'BỎ QUA' }, ...prev.slice(0, 9)]);
           continue;
         }
-        const slugify = (str: string) => {
-          return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+        const personalize = (html: string, rowData: any[]) => {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+
+          // Duyệt qua tất cả các text nodes để thay thế
+          const walk = (node: Node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+              node.textContent = (node.textContent || '').replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                const target = slugify(p1);
+                const colIdx = headers.findIndex(h => slugify(h) === target);
+                return colIdx !== -1 && rowData[colIdx] !== undefined ? String(rowData[colIdx]) : match;
+              });
+            } else {
+              for (let i = 0; i < node.childNodes.length; i++) {
+                walk(node.childNodes[i]);
+              }
+            }
+          };
+          
+          walk(doc.body);
+          return doc.body.innerHTML;
         };
 
-        const personalize = (text: string, rowData: any[]) => {
+        // Đối với tiêu đề (plain text) thì vẫn dùng regex đơn giản
+        const personalizeText = (text: string, rowData: any[]) => {
+          const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
           return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = p1;
-            const target = slugify(tempDiv.textContent || tempDiv.innerText || p1);
+            const target = slugify(p1);
             const colIdx = headers.findIndex(h => slugify(h) === target);
             return colIdx !== -1 && rowData[colIdx] !== undefined ? String(rowData[colIdx]) : match;
           });
         };
 
-        const finalSubject = personalize(subject, row);
+        const finalSubject = personalizeText(subject, row);
         const finalHtml = personalize(template, row);
 
         const sendRes = await fetch('/api/send', { 
@@ -492,12 +512,12 @@ export default function Dashboard() {
                   <div style={{ fontWeight: 700, color: '#1e293b' }}>
                     {(() => {
                       const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
-                      const rowData = rows[previewIndex] || [];
+                      const firstRow = rows[previewIndex] || [];
+                      const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
                       return subject.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-                        const tempDiv = document.createElement('div'); tempDiv.innerHTML = p1;
-                        const target = slugify(tempDiv.textContent || p1);
+                        const target = slugify(p1);
                         const idx = headers.findIndex(h => slugify(h) === target);
-                        return idx !== -1 && rowData[idx] !== undefined ? String(rowData[idx]) : match;
+                        return idx !== -1 && firstRow[idx] !== undefined ? String(firstRow[idx]) : match;
                       });
                     })()}
                   </div>
@@ -509,15 +529,28 @@ export default function Dashboard() {
                     style={{ color: '#334155', lineHeight: '1.6', maxHeight: '300px', overflowY: 'auto' }}
                     dangerouslySetInnerHTML={{ 
                       __html: (() => {
+                        if (!template) return '<p style="color:#94a3b8">Nội dung sẽ hiển thị tại đây...</p>';
+                        const firstRow = rows[previewIndex] || [];
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(template, 'text/html');
                         const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
-                        const rowData = rows[previewIndex] || [];
-                        return template.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-                          const tempDiv = document.createElement('div'); tempDiv.innerHTML = p1;
-                          const target = slugify(tempDiv.textContent || p1);
-                          const idx = headers.findIndex(h => slugify(h) === target);
-                          return idx !== -1 && rowData[idx] !== undefined ? String(rowData[idx]) : match;
-                        });
-                      })() || '<p style="color:#94a3b8">Nội dung sẽ hiển thị tại đây...</p>'
+
+                        const walk = (node: Node) => {
+                          if (node.nodeType === Node.TEXT_NODE) {
+                            node.textContent = (node.textContent || '').replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                              const target = slugify(p1);
+                              const colIdx = headers.findIndex(h => slugify(h) === target);
+                              return colIdx !== -1 && firstRow[colIdx] !== undefined ? String(firstRow[colIdx]) : match;
+                            });
+                          } else {
+                            for (let i = 0; i < node.childNodes.length; i++) {
+                              walk(node.childNodes[i]);
+                            }
+                          }
+                        };
+                        walk(doc.body);
+                        return doc.body.innerHTML;
+                      })()
                     }}
                   />
                 </div>
@@ -552,12 +585,11 @@ export default function Dashboard() {
                   <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1.05rem' }}>
                     {(() => {
                       const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
-                      const rowData = rows[previewIndex] || [];
+                      const firstRow = rows[previewIndex] || [];
                       return subject.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-                        const tempDiv = document.createElement('div'); tempDiv.innerHTML = p1;
-                        const target = slugify(tempDiv.textContent || p1);
+                        const target = slugify(p1);
                         const idx = headers.findIndex(h => slugify(h) === target);
-                        return idx !== -1 && rowData[idx] !== undefined ? String(rowData[idx]) : match;
+                        return idx !== -1 && firstRow[idx] !== undefined ? String(firstRow[idx]) : match;
                       });
                     })() || '...'}
                   </div>
@@ -567,15 +599,28 @@ export default function Dashboard() {
                   style={{ padding: '25px', fontSize: '1rem', color: '#334155', minHeight: '400px', maxHeight: '600px', overflowY: 'auto', lineHeight: '1.6', background: 'white' }} 
                   dangerouslySetInnerHTML={{ 
                     __html: (() => {
+                      if (!template) return '<i style="color:#cbd5e1">Nội dung sẽ hiển thị ở đây...</i>';
+                      const firstRow = rows[previewIndex] || [];
+                      const parser = new DOMParser();
+                      const doc = parser.parseFromString(template, 'text/html');
                       const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
-                      const rowData = rows[previewIndex] || [];
-                      return template.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-                        const tempDiv = document.createElement('div'); tempDiv.innerHTML = p1;
-                        const target = slugify(tempDiv.textContent || p1);
-                        const idx = headers.findIndex(h => slugify(h) === target);
-                        return idx !== -1 && rowData[idx] !== undefined ? String(rowData[idx]) : match;
-                      });
-                    })() || '<i style="color:#cbd5e1">Nội dung sẽ hiển thị ở đây...</i>'
+
+                      const walk = (node: Node) => {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                          node.textContent = (node.textContent || '').replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                            const target = slugify(p1);
+                            const colIdx = headers.findIndex(h => slugify(h) === target);
+                            return colIdx !== -1 && firstRow[colIdx] !== undefined ? String(firstRow[colIdx]) : match;
+                          });
+                        } else {
+                          for (let i = 0; i < node.childNodes.length; i++) {
+                            walk(node.childNodes[i]);
+                          }
+                        }
+                      };
+                      walk(doc.body);
+                      return doc.body.innerHTML;
+                    })()
                   }} 
                 />
                 {fileInfo && <div style={{ padding: '12px 25px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', color: '#6366f1', fontSize: '0.85rem', fontWeight: 600 }}>📎 File đính kèm: {fileInfo.name}</div>}
