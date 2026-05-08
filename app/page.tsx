@@ -252,14 +252,14 @@ export default function Dashboard() {
           continue;
         }
         const personalize = (html: string, rowData: any[]) => {
+          if (typeof window === 'undefined') return html;
           const parser = new DOMParser();
           const doc = parser.parseFromString(html, 'text/html');
           const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
 
-          // Duyệt qua tất cả các text nodes để thay thế
-          const walk = (node: Node) => {
-            if (node.nodeType === Node.TEXT_NODE) {
-              node.textContent = (node.textContent || '').replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+          const walk = (node: any) => {
+            if (node.nodeType === 3) { // 3 là TEXT_NODE
+              node.textContent = (node.textContent || '').replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
                 const target = slugify(p1);
                 const colIdx = headers.findIndex(h => slugify(h) === target);
                 return colIdx !== -1 && rowData[colIdx] !== undefined ? String(rowData[colIdx]) : match;
@@ -514,7 +514,7 @@ export default function Dashboard() {
                       const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
                       const firstRow = rows[previewIndex] || [];
                       const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
-                      return subject.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                      return subject.replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
                         const target = slugify(p1);
                         const idx = headers.findIndex(h => slugify(h) === target);
                         return idx !== -1 && firstRow[idx] !== undefined ? String(firstRow[idx]) : match;
@@ -529,15 +529,15 @@ export default function Dashboard() {
                     style={{ color: '#334155', lineHeight: '1.6', maxHeight: '300px', overflowY: 'auto' }}
                     dangerouslySetInnerHTML={{ 
                       __html: (() => {
-                        if (!template) return '<p style="color:#94a3b8">Nội dung sẽ hiển thị tại đây...</p>';
+                        if (typeof window === 'undefined' || !template) return '<p style="color:#94a3b8">Nội dung sẽ hiển thị tại đây...</p>';
                         const firstRow = rows[previewIndex] || [];
                         const parser = new DOMParser();
                         const doc = parser.parseFromString(template, 'text/html');
                         const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
 
-                        const walk = (node: Node) => {
-                          if (node.nodeType === Node.TEXT_NODE) {
-                            node.textContent = (node.textContent || '').replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                        const walk = (node: any) => {
+                          if (node.nodeType === 3) {
+                            node.textContent = (node.textContent || '').replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
                               const target = slugify(p1);
                               const colIdx = headers.findIndex(h => slugify(h) === target);
                               return colIdx !== -1 && firstRow[colIdx] !== undefined ? String(firstRow[colIdx]) : match;
@@ -586,7 +586,7 @@ export default function Dashboard() {
                     {(() => {
                       const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
                       const firstRow = rows[previewIndex] || [];
-                      return subject.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                      return subject.replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
                         const target = slugify(p1);
                         const idx = headers.findIndex(h => slugify(h) === target);
                         return idx !== -1 && firstRow[idx] !== undefined ? String(firstRow[idx]) : match;
@@ -599,15 +599,15 @@ export default function Dashboard() {
                   style={{ padding: '25px', fontSize: '1rem', color: '#334155', minHeight: '400px', maxHeight: '600px', overflowY: 'auto', lineHeight: '1.6', background: 'white' }} 
                   dangerouslySetInnerHTML={{ 
                     __html: (() => {
-                      if (!template) return '<i style="color:#cbd5e1">Nội dung sẽ hiển thị ở đây...</i>';
+                      if (typeof window === 'undefined' || !template) return '<i style="color:#cbd5e1">Nội dung sẽ hiển thị ở đây...</i>';
                       const firstRow = rows[previewIndex] || [];
                       const parser = new DOMParser();
                       const doc = parser.parseFromString(template, 'text/html');
                       const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
 
-                      const walk = (node: Node) => {
-                        if (node.nodeType === Node.TEXT_NODE) {
-                          node.textContent = (node.textContent || '').replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                      const walk = (node: any) => {
+                        if (node.nodeType === 3) {
+                          node.textContent = (node.textContent || '').replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
                             const target = slugify(p1);
                             const colIdx = headers.findIndex(h => slugify(h) === target);
                             return colIdx !== -1 && firstRow[colIdx] !== undefined ? String(firstRow[colIdx]) : match;
