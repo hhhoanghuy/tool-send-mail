@@ -19,7 +19,11 @@ export async function POST(request: Request) {
       };
 
       return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-        const cleanP1 = p1.replace(/<[^>]*>?/gm, ''); // Bỏ HTML
+        const cleanP1 = p1.replace(/<[^>]*>?/gm, '')
+                          .replace(/&nbsp;/g, ' ')
+                          .replace(/&amp;/g, '&')
+                          .replace(/&lt;/g, '<')
+                          .replace(/&gt;/g, '>');
         const target = slugify(cleanP1);
         
         if (!data || typeof data !== 'object') return match;

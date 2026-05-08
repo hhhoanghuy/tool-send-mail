@@ -64,7 +64,12 @@ export async function runAutomatedCampaign() {
         };
 
         return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-          const cleanP1 = p1.replace(/<[^>]*>?/gm, '');
+          // Bỏ tag HTML và giải mã thực thể như &nbsp;
+          const cleanP1 = p1.replace(/<[^>]*>?/gm, '')
+                            .replace(/&nbsp;/g, ' ')
+                            .replace(/&amp;/g, '&')
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>');
           const target = slugify(cleanP1);
           const colIndex = cleanHeaders.findIndex(h => slugify(h) === target);
           return colIndex !== -1 && row[colIndex] !== undefined ? String(row[colIndex]) : match;

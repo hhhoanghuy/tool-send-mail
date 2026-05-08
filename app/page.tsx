@@ -242,7 +242,11 @@ export default function Dashboard() {
 
         const personalize = (text: string) => {
           return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-            const cleanP1 = p1.replace(/<[^>]*>?/gm, '');
+            // Dùng trình duyệt để giải mã thực thể HTML và loại bỏ tag ẩn
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = p1;
+            const cleanP1 = tempDiv.textContent || tempDiv.innerText || p1;
+            
             const target = slugify(cleanP1);
             const colIdx = headers.findIndex(h => slugify(h) === target);
             return colIdx !== -1 && row[colIdx] !== undefined ? String(row[colIdx]) : match;
