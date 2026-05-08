@@ -230,6 +230,7 @@ export default function Dashboard() {
       const rows = data.rows || [];
       setProgress({ current: 0, total: rows.length, success: 0, failed: 0 });
 
+      // Vòng lặp gửi mail thủ công
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const emailIdx = headers.indexOf(emailColumn);
