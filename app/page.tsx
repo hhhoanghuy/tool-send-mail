@@ -71,20 +71,27 @@ export default function Dashboard() {
       try { setHeaders(JSON.parse(localHeaders)); } catch (e) {}
     }
 
-    // 2. Sau đó mới hỏi Server để cập nhật những gì thiếu hoặc mới nhất
+    // 2. Sau đó mới hỏi Server để lấy những gì máy bạn CHƯA CÓ
     fetch('/api/config').then(res => res.json()).then(data => {
-      if (data.spreadsheetId && !localData.spreadsheetId) setSpreadsheetId(data.spreadsheetId);
-      if (data.sheetName && !localData.sheetName) setSheetName(data.sheetName);
-      if (data.emailColumn && !localData.emailColumn) setEmailColumn(data.emailColumn);
-      if (data.statusColumn && !localData.statusColumn) setStatusColumn(data.statusColumn);
-      if (data.subject && !localData.subject) setSubject(data.subject);
-      if (data.template && !localData.template) setTemplate(data.template);
-      if (data.startRow && !localData.startRow) setStartRow(data.startRow);
-      if (data.emailUser && !localData.emailUser) setEmailUser(data.emailUser);
-      if (data.emailPass && !localData.emailPass) setEmailPass(data.emailPass);
-      if (data.googleCredentials && !localData.googleCredentials) setGoogleCredentials(data.googleCredentials);
+      const setIfEmpty = (setter: any, localVal: any, serverVal: any) => {
+        if (!localVal && serverVal) setter(serverVal);
+      };
+
+      setIfEmpty(setSpreadsheetId, localData.spreadsheetId, data.spreadsheetId);
+      setIfEmpty(setSheetName, localData.sheetName, data.sheetName);
+      setIfEmpty(setEmailColumn, localData.emailColumn, data.emailColumn);
+      setIfEmpty(setStatusColumn, localData.statusColumn, data.statusColumn);
+      setIfEmpty(setSubject, localData.subject, data.subject);
+      setIfEmpty(setTemplate, localData.template, data.template);
+      setIfEmpty(setStartRow, localData.startRow, data.startRow);
+      setIfEmpty(setEmailUser, localData.emailUser, data.emailUser);
+      setIfEmpty(setEmailPass, localData.emailPass, data.emailPass);
+      setIfEmpty(setGoogleCredentials, localData.googleCredentials, data.googleCredentials);
+      
       if (data.fileInfo) setFileInfo(data.fileInfo);
-      if (data.headers && !localHeaders) setHeaders(data.headers);
+      
+      const localHeaders = localStorage.getItem('headers');
+      if (!localHeaders && data.headers) setHeaders(data.headers);
     });
   }, []);
 
