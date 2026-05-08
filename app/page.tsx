@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [googleCredentials, setGoogleCredentials] = useState('');
   const [autoPilot, setAutoPilot] = useState(false);
   const [nextScanIn, setNextScanIn] = useState(300);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   const [logs, setLogs] = useState<any[]>([]);
@@ -239,29 +240,21 @@ export default function Dashboard() {
           continue;
         }
         const slugify = (str: string) => {
-          return str
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/[đĐ]/g, m => m === 'đ' ? 'd' : 'D')
-            .replace(/[^a-z0-9]/g, '');
+          return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
         };
 
-        const personalize = (text: string) => {
+        const personalize = (text: string, rowData: any[]) => {
           return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-            // Dùng trình duyệt để giải mã thực thể HTML và loại bỏ tag ẩn
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = p1;
-            const cleanP1 = tempDiv.textContent || tempDiv.innerText || p1;
-            
-            const target = slugify(cleanP1);
+            const target = slugify(tempDiv.textContent || tempDiv.innerText || p1);
             const colIdx = headers.findIndex(h => slugify(h) === target);
-            return colIdx !== -1 && row[colIdx] !== undefined ? String(row[colIdx]) : match;
+            return colIdx !== -1 && rowData[colIdx] !== undefined ? String(rowData[colIdx]) : match;
           });
         };
 
-        const finalSubject = personalize(subject);
-        const finalHtml = personalize(template);
+        const finalSubject = personalize(subject, row);
+        const finalHtml = personalize(template, row);
 
         const sendRes = await fetch('/api/send', { 
           method: 'POST', 
@@ -463,6 +456,60 @@ export default function Dashboard() {
                   placeholder="Nhập mã HTML tại đây..."
                 />
               )}
+            </div>
+            
+            <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginTop: '20px' }}>
+              <div style={{ fontWeight: 700, marginBottom: '15px', color: '#1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>👁️</span> Xem trước nội dung
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  Xem dòng thứ: 
+                  <input 
+                    type="number" 
+                    value={previewIndex + 1} 
+                    onChange={e => setPreviewIndex(Math.max(0, Math.min(rows.length - 1, Number(e.target.value) - 1)))}
+                    style={{ width: '60px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                  />
+                  / {rows.length}
+                </div>
+              </div>
+              <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '10px', marginBottom: '10px' }}>
+                  <span style={{ color: '#64748b', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Tiêu đề:</span>
+                  <div style={{ fontWeight: 700, color: '#1e293b' }}>
+                    {(() => {
+                      const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+                      const rowData = rows[previewIndex] || [];
+                      return subject.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                        const tempDiv = document.createElement('div'); tempDiv.innerHTML = p1;
+                        const target = slugify(tempDiv.textContent || p1);
+                        const idx = headers.findIndex(h => slugify(h) === target);
+                        return idx !== -1 && rowData[idx] !== undefined ? String(rowData[idx]) : match;
+                      });
+                    })()}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Nội dung:</span>
+                  <div 
+                    className="preview-content"
+                    style={{ color: '#334155', lineHeight: '1.6', maxHeight: '300px', overflowY: 'auto' }}
+                    dangerouslySetInnerHTML={{ 
+                      __html: (() => {
+                        const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+                        const rowData = rows[previewIndex] || [];
+                        return template.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                          const tempDiv = document.createElement('div'); tempDiv.innerHTML = p1;
+                          const target = slugify(tempDiv.textContent || p1);
+                          const idx = headers.findIndex(h => slugify(h) === target);
+                          return idx !== -1 && rowData[idx] !== undefined ? String(rowData[idx]) : match;
+                        });
+                      })() || '<p style="color:#94a3b8">Nội dung sẽ hiển thị tại đây...</p>'
+                    }}
+                  />
+                </div>
+              </div>
             </div>
             
             <div style={{ marginTop: '1.5rem', padding: '15px', border: '1px dashed #cbd5e1', borderRadius: '8px', background: '#f8fafc' }}>
