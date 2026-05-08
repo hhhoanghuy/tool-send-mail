@@ -49,54 +49,42 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true);
+    // 1. Lấy từ trình duyệt trước (LocalStorage) để người dùng thấy dữ liệu của mình ngay
+    const localData: any = {};
+    ['spreadsheetId', 'sheetName', 'emailColumn', 'statusColumn', 'subject', 'template', 'startRow', 'emailUser', 'emailPass', 'googleCredentials'].forEach(key => {
+      localData[key] = localStorage.getItem(key);
+    });
+
+    if (localData.spreadsheetId) setSpreadsheetId(localData.spreadsheetId);
+    if (localData.sheetName) setSheetName(localData.sheetName);
+    if (localData.emailColumn) setEmailColumn(localData.emailColumn);
+    if (localData.statusColumn) setStatusColumn(localData.statusColumn);
+    if (localData.subject) setSubject(localData.subject);
+    if (localData.template) setTemplate(localData.template);
+    if (localData.startRow) setStartRow(Number(localData.startRow));
+    if (localData.emailUser) setEmailUser(localData.emailUser);
+    if (localData.emailPass) setEmailPass(localData.emailPass);
+    if (localData.googleCredentials) setGoogleCredentials(localData.googleCredentials);
+    
+    const localHeaders = localStorage.getItem('headers');
+    if (localHeaders) {
+      try { setHeaders(JSON.parse(localHeaders)); } catch (e) {}
+    }
+
+    // 2. Sau đó mới hỏi Server để cập nhật những gì thiếu hoặc mới nhất
     fetch('/api/config').then(res => res.json()).then(data => {
-      if (data.spreadsheetId) {
-        setSpreadsheetId(data.spreadsheetId); setSheetName(data.sheetName);
-        setEmailColumn(data.emailColumn); setStatusColumn(data.statusColumn);
-        setSubject(data.subject); setTemplate(data.template);
-        setAutoPilot(data.autoPilot); setStartRow(data.startRow || 5);
-        if (data.fileInfo) setFileInfo(data.fileInfo);
-      }
-      
-      // Ưu tiên lấy từ trình duyệt trước (LocalStorage) để đảm bảo không phải nhập lại
-      const localData: any = {};
-      ['spreadsheetId', 'sheetName', 'emailColumn', 'statusColumn', 'subject', 'template', 'startRow', 'emailUser', 'emailPass', 'googleCredentials'].forEach(key => {
-        localData[key] = localStorage.getItem(key);
-      });
-
-      if (localData.spreadsheetId) setSpreadsheetId(localData.spreadsheetId);
-      else if (data.spreadsheetId) setSpreadsheetId(data.spreadsheetId);
-
-      if (localData.sheetName) setSheetName(localData.sheetName);
-      else if (data.sheetName) setSheetName(data.sheetName);
-
-      if (localData.emailColumn) setEmailColumn(localData.emailColumn);
-      else if (data.emailColumn) setEmailColumn(data.emailColumn);
-
-      if (localData.statusColumn) setStatusColumn(localData.statusColumn);
-      else if (data.statusColumn) setStatusColumn(data.statusColumn);
-
-      if (localData.subject) setSubject(localData.subject);
-      else if (data.subject) setSubject(data.subject);
-
-      if (localData.template) setTemplate(localData.template);
-      else if (data.template) setTemplate(data.template);
-
-      if (localData.startRow) setStartRow(Number(localData.startRow));
-      else if (data.startRow) setStartRow(data.startRow);
-
-      if (localData.emailUser) setEmailUser(localData.emailUser);
-      else if (data.emailUser) setEmailUser(data.emailUser);
-
-      if (localData.emailPass) setEmailPass(localData.emailPass);
-      else if (data.emailPass) setEmailPass(data.emailPass);
-
-      const localHeaders = localStorage.getItem('headers');
-      if (localHeaders) {
-        try { setHeaders(JSON.parse(localHeaders)); } catch (e) {}
-      } else if (data.headers) {
-        setHeaders(data.headers);
-      }
+      if (data.spreadsheetId && !localData.spreadsheetId) setSpreadsheetId(data.spreadsheetId);
+      if (data.sheetName && !localData.sheetName) setSheetName(data.sheetName);
+      if (data.emailColumn && !localData.emailColumn) setEmailColumn(data.emailColumn);
+      if (data.statusColumn && !localData.statusColumn) setStatusColumn(data.statusColumn);
+      if (data.subject && !localData.subject) setSubject(data.subject);
+      if (data.template && !localData.template) setTemplate(data.template);
+      if (data.startRow && !localData.startRow) setStartRow(data.startRow);
+      if (data.emailUser && !localData.emailUser) setEmailUser(data.emailUser);
+      if (data.emailPass && !localData.emailPass) setEmailPass(data.emailPass);
+      if (data.googleCredentials && !localData.googleCredentials) setGoogleCredentials(data.googleCredentials);
+      if (data.fileInfo) setFileInfo(data.fileInfo);
+      if (data.headers && !localHeaders) setHeaders(data.headers);
     });
   }, []);
 
@@ -208,7 +196,11 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.headers) {
         setHeaders(data.headers);
-        alert('✅ Đã kết nối Sheet thành công! Hãy chọn các cột ánh xạ bên dưới.');
+        // Lưu ngay ID và Tab vào trình duyệt để F5 không mất
+        localStorage.setItem('spreadsheetId', spreadsheetId);
+        localStorage.setItem('sheetName', sheetName);
+        localStorage.setItem('headers', JSON.stringify(data.headers));
+        alert('✅ Đã kết nối Sheet thành công!');
       } else {
         alert('❌ Lỗi: ' + (data.error || 'Không thể lấy dữ liệu tiêu đề'));
       }
