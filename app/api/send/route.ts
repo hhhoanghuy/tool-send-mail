@@ -8,14 +8,13 @@ export async function POST(request: Request) {
     const personalize = (text: string | null | undefined) => {
       if (!text) return '';
       return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-        // 1. Loại bỏ sạch thẻ HTML ẩn bên trong ngoặc
-        const cleanP1 = p1.replace(/<[^>]*>?/gm, '').trim().toLowerCase();
+        const cleanP1 = p1.replace(/<[^>]*>?/gm, '').trim().toLowerCase().replace(/\s+/g, '');
         
         if (!data || typeof data !== 'object') return match;
 
-        // 2. Tìm key khớp nhất (bỏ qua dấu cách, hoa thường)
         const key = Object.keys(data).find(k => {
-          return k.trim().toLowerCase() === cleanP1;
+          const cleanK = k.trim().toLowerCase().replace(/\s+/g, '');
+          return cleanK === cleanP1;
         });
 
         if (key && data[key] !== undefined && data[key] !== null) {

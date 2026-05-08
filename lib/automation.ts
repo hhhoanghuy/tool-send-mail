@@ -55,8 +55,8 @@ export async function runAutomatedCampaign() {
       const personalize = (text: string | null | undefined) => {
         if (!text) return '';
         return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-          const cleanP1 = p1.replace(/<[^>]*>?/gm, '').trim().toLowerCase();
-          const colIndex = cleanHeaders.findIndex(h => h.trim().toLowerCase() === cleanP1);
+          const cleanP1 = p1.replace(/<[^>]*>?/gm, '').trim().toLowerCase().replace(/\s+/g, '');
+          const colIndex = cleanHeaders.findIndex(h => h.trim().toLowerCase().replace(/\s+/g, '') === cleanP1);
           return colIndex !== -1 && row[colIndex] !== undefined ? String(row[colIndex]) : match;
         });
       };

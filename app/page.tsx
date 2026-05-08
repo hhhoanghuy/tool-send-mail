@@ -91,8 +91,12 @@ export default function Dashboard() {
       if (localData.emailPass) setEmailPass(localData.emailPass);
       else if (data.emailPass) setEmailPass(data.emailPass);
 
-      if (localData.googleCredentials) setGoogleCredentials(localData.googleCredentials);
-      else if (data.googleCredentials) setGoogleCredentials(data.googleCredentials);
+      const localHeaders = localStorage.getItem('headers');
+      if (localHeaders) {
+        try { setHeaders(JSON.parse(localHeaders)); } catch (e) {}
+      } else if (data.headers) {
+        setHeaders(data.headers);
+      }
     });
   }, []);
 
@@ -152,6 +156,7 @@ export default function Dashboard() {
     localStorage.setItem('emailUser', emailUser);
     localStorage.setItem('emailPass', emailPass);
     localStorage.setItem('googleCredentials', googleCredentials);
+    localStorage.setItem('headers', JSON.stringify(headers));
     
     setAutoPilot(isAuto);
     alert(isAuto ? '✅ Đã bật chế độ gửi Tự động!' : '✅ Đã kết nối & Lưu cấu hình thành công!');
