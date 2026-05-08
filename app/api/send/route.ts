@@ -10,10 +10,11 @@ export async function POST(request: Request) {
       
       // Hàm loại bỏ dấu tiếng Việt và ký tự đặc biệt để so khớp chuẩn xác
       const slugify = (str: string) => {
-        return str.normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+        return str
           .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[đĐ]/g, m => m === 'đ' ? 'd' : 'D')
           .replace(/[^a-z0-9]/g, '');
       };
 

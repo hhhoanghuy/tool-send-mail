@@ -55,10 +55,11 @@ export async function runAutomatedCampaign() {
       const personalize = (text: string | null | undefined) => {
         if (!text) return '';
         const slugify = (str: string) => {
-          return str.normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+          return str
             .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[đĐ]/g, m => m === 'đ' ? 'd' : 'D')
             .replace(/[^a-z0-9]/g, '');
         };
 

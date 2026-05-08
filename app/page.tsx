@@ -231,16 +231,34 @@ export default function Dashboard() {
           setLogs(prev => [{ email: row[emailIdx], status: 'BỎ QUA' }, ...prev.slice(0, 9)]);
           continue;
         }
-        const rowDataObject: any = {};
-        headers.forEach((h, idx) => { if (h) rowDataObject[h] = row[idx]; });
+        const slugify = (str: string) => {
+          return str
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[đĐ]/g, m => m === 'đ' ? 'd' : 'D')
+            .replace(/[^a-z0-9]/g, '');
+        };
+
+        const personalize = (text: string) => {
+          return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+            const cleanP1 = p1.replace(/<[^>]*>?/gm, '');
+            const target = slugify(cleanP1);
+            const colIdx = headers.findIndex(h => slugify(h) === target);
+            return colIdx !== -1 && row[colIdx] !== undefined ? String(row[colIdx]) : match;
+          });
+        };
+
+        const finalSubject = personalize(subject);
+        const finalHtml = personalize(template);
 
         const sendRes = await fetch('/api/send', { 
           method: 'POST', 
           body: JSON.stringify({ 
             recipient: row[headers.indexOf(emailColumn)], 
-            subject, 
-            template, 
-            data: rowDataObject, 
+            subject: finalSubject, 
+            template: finalHtml, 
+            data: {}, // Đã ánh xạ xong nên không cần data nữa
             fileData: fileInfo?.data, 
             fileName: fileInfo?.name,
             emailUser,
