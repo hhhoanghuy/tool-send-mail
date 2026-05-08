@@ -208,6 +208,16 @@ export default function Dashboard() {
         localStorage.setItem('spreadsheetId', spreadsheetId);
         localStorage.setItem('sheetName', sheetName);
         localStorage.setItem('headers', JSON.stringify(data.headers));
+        
+        // Lấy thêm 10 dòng đầu để làm dữ liệu xem trước (Preview)
+        const dataRes = await fetch('/api/sheets/data', {
+          method: 'POST',
+          body: JSON.stringify({ spreadsheetId, range: sheetName, startRow: 2, googleCredentials }), // Lấy từ hàng 2
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const dataJson = await dataRes.json();
+        if (dataJson.rows) setRows(dataJson.rows);
+
         alert('✅ Đã kết nối Sheet thành công!');
       } else {
         alert('❌ Lỗi: ' + (data.error || 'Không thể lấy dữ liệu tiêu đề'));
@@ -539,12 +549,34 @@ export default function Dashboard() {
               <div style={{ width: '100%', maxWidth: '550px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
                 <div style={{ padding: '20px', borderBottom: '1px solid #f1f5f9' }}>
                   <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', fontWeight: 600 }}>Tiêu đề:</div>
-                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1.05rem' }}>{subject.replace(/{{(.*?)}}/g, '[$1]') || '...'}</div>
+                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1.05rem' }}>
+                    {(() => {
+                      const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+                      const rowData = rows[previewIndex] || [];
+                      return subject.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                        const tempDiv = document.createElement('div'); tempDiv.innerHTML = p1;
+                        const target = slugify(tempDiv.textContent || p1);
+                        const idx = headers.findIndex(h => slugify(h) === target);
+                        return idx !== -1 && rowData[idx] !== undefined ? String(rowData[idx]) : match;
+                      });
+                    })() || '...'}
+                  </div>
                 </div>
                 <div 
                   className="preview-content"
                   style={{ padding: '25px', fontSize: '1rem', color: '#334155', minHeight: '400px', maxHeight: '600px', overflowY: 'auto', lineHeight: '1.6', background: 'white' }} 
-                  dangerouslySetInnerHTML={{ __html: template.replace(/{{(.*?)}}/g, '<b style="color:#6366f1">[$1]</b>') || '<i style="color:#cbd5e1">Nội dung sẽ hiển thị ở đây...</i>' }} 
+                  dangerouslySetInnerHTML={{ 
+                    __html: (() => {
+                      const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+                      const rowData = rows[previewIndex] || [];
+                      return template.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+                        const tempDiv = document.createElement('div'); tempDiv.innerHTML = p1;
+                        const target = slugify(tempDiv.textContent || p1);
+                        const idx = headers.findIndex(h => slugify(h) === target);
+                        return idx !== -1 && rowData[idx] !== undefined ? String(rowData[idx]) : match;
+                      });
+                    })() || '<i style="color:#cbd5e1">Nội dung sẽ hiển thị ở đây...</i>'
+                  }} 
                 />
                 {fileInfo && <div style={{ padding: '12px 25px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', color: '#6366f1', fontSize: '0.85rem', fontWeight: 600 }}>📎 File đính kèm: {fileInfo.name}</div>}
               </div>
