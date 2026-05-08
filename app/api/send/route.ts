@@ -5,13 +5,23 @@ export async function POST(request: Request) {
   try {
     const { recipient, subject, template, data, fileData, fileName, emailUser, emailPass } = await request.json();
 
-    const personalize = (text: string) => {
-      return text.replace(/{{(.*?)}}/g, (match, p1) => {
-        // Loại bỏ các thẻ HTML nếu người dùng lỡ định dạng bên trong {{...}}
-        const cleanP1 = p1.replace(/<[^>]*>?/gm, '');
-        const target = cleanP1.trim().toLowerCase();
-        const key = Object.keys(data).find(k => k.trim().toLowerCase() === target);
-        return key ? data[key] : match;
+    const personalize = (text: string | null | undefined) => {
+      if (!text) return '';
+      return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+        // 1. Loại bỏ sạch thẻ HTML ẩn bên trong ngoặc
+        const cleanP1 = p1.replace(/<[^>]*>?/gm, '').trim().toLowerCase();
+        
+        if (!data || typeof data !== 'object') return match;
+
+        // 2. Tìm key khớp nhất (bỏ qua dấu cách, hoa thường)
+        const key = Object.keys(data).find(k => {
+          return k.trim().toLowerCase() === cleanP1;
+        });
+
+        if (key && data[key] !== undefined && data[key] !== null) {
+          return String(data[key]);
+        }
+        return match;
       });
     };
 

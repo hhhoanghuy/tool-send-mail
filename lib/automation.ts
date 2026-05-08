@@ -52,12 +52,12 @@ export async function runAutomatedCampaign() {
     const status = row[statusIdx] ? String(row[statusIdx]).trim() : '';
 
     if (email && email.includes('@') && !status.includes('SENT')) {
-      const personalize = (text: string) => {
-        return text.replace(/{{(.*?)}}/g, (match, p1) => {
-          const cleanP1 = p1.replace(/<[^>]*>?/gm, '');
-          const target = cleanP1.trim().toLowerCase();
-          const colIndex = cleanHeaders.findIndex(h => h.trim().toLowerCase() === target);
-          return colIndex !== -1 ? row[colIndex] : match;
+      const personalize = (text: string | null | undefined) => {
+        if (!text) return '';
+        return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+          const cleanP1 = p1.replace(/<[^>]*>?/gm, '').trim().toLowerCase();
+          const colIndex = cleanHeaders.findIndex(h => h.trim().toLowerCase() === cleanP1);
+          return colIndex !== -1 && row[colIndex] !== undefined ? String(row[colIndex]) : match;
         });
       };
 
