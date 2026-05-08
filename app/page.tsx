@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [spreadsheetId, setSpreadsheetId] = useState('');
   const [sheetName, setSheetName] = useState('');
   const [headers, setHeaders] = useState<string[]>([]);
+  const [rows, setRows] = useState<any[][]>([]);
   const [emailColumn, setEmailColumn] = useState('');
   const [statusColumn, setStatusColumn] = useState('');
   const [skipSent, setSkipSent] = useState(true);
@@ -237,12 +238,13 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' } 
       });
       const data = await res.json();
-      const rows = data.rows || [];
-      setProgress({ current: 0, total: rows.length, success: 0, failed: 0 });
+      const fetchedRows = data.rows || [];
+      setRows(fetchedRows);
+      setProgress({ current: 0, total: fetchedRows.length, success: 0, failed: 0 });
 
       // Vòng lặp gửi mail thủ công
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
+      for (let i = 0; i < fetchedRows.length; i++) {
+        const row = fetchedRows[i];
         const emailIdx = headers.indexOf(emailColumn);
         const statusIdx = headers.indexOf(statusColumn);
         if (!row[emailIdx]) continue;
@@ -513,7 +515,6 @@ export default function Dashboard() {
                     {(() => {
                       const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
                       const firstRow = rows[previewIndex] || [];
-                      const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
                       return subject.replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
                         const target = slugify(p1);
                         const idx = headers.findIndex(h => slugify(h) === target);
