@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { sendMail, formatEmailBody, replacePlaceholders } from './google';
+import { sendMail, personalizeContent } from './google';
 import fs from 'fs';
 import path from 'path';
 
@@ -30,86 +30,71 @@ export async function runAutomatedCampaign() {
   });
   const sheets = google.sheets({ version: 'v4', auth });
 
-  const headerRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: `'${sheetName}'!A1:Z10` });
-  const allRows = headerRes.data.values || [];
-  const headerRow = allRows.find(row => row.map(c => String(c).toLowerCase().trim()).includes('email')) || [];
-  const cleanHeaders = headerRow.map(h => String(h).trim());
+  try {
+    const headerRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: `'${sheetName}'!A1:Z10` });
+    const allRows = headerRes.data.values || [];
+    // Tìm header thực tế (dòng chứa từ 'email')
+    const headerRow = allRows.find(row => row.map(c => String(c).toLowerCase().trim()).includes('email')) || allRows[0] || [];
+    const cleanHeaders = headerRow.map(h => String(h).trim());
 
-  const emailIdx = cleanHeaders.indexOf(emailColumn);
-  const statusIdx = cleanHeaders.indexOf(statusColumn);
+    const emailIdx = cleanHeaders.indexOf(emailColumn);
+    const statusIdx = cleanHeaders.indexOf(statusColumn);
 
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `'${sheetName}'!A${startRow}:Z1000`,
-  });
-  const rows = res.data.values || [];
+    if (emailIdx === -1) return { message: `Không tìm thấy cột email: ${emailColumn}` };
 
-  let sentCount = 0;
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${sheetName}'!A${startRow}:Z1000`,
+    });
+    const rows = res.data.values || [];
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const email = row[emailIdx] ? String(row[emailIdx]).trim() : '';
-    const status = row[statusIdx] ? String(row[statusIdx]).trim() : '';
+    let sentCount = 0;
 
-    if (email && email.includes('@') && !status.includes('SENT')) {
-      const personalize = (text: string | null | undefined) => {
-        if (!text) return '';
-        const slugify = (str: string) => {
-          return str
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/[đĐ]/g, m => m === 'đ' ? 'd' : 'D')
-            .replace(/[^a-z0-9]/g, '');
-        };
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const email = row[emailIdx] ? String(row[emailIdx]).trim() : '';
+      const status = statusIdx !== -1 && row[statusIdx] ? String(row[statusIdx]).trim() : '';
 
-        return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-          // Bỏ tag HTML và giải mã thực thể như &nbsp;
-          const cleanP1 = p1.replace(/<[^>]*>?/gm, '')
-                            .replace(/&nbsp;/g, ' ')
-                            .replace(/&amp;/g, '&')
-                            .replace(/&lt;/g, '<')
-                            .replace(/&gt;/g, '>');
-          const target = slugify(cleanP1);
-          const colIndex = cleanHeaders.findIndex(h => slugify(h) === target);
-          return colIndex !== -1 && row[colIndex] !== undefined ? String(row[colIndex]) : match;
-        });
-      };
+      if (email && email.includes('@') && !status.includes('SENT')) {
+        const finalSubject = personalizeContent(subject, row, cleanHeaders);
+        const finalHtml = personalizeContent(template, row, cleanHeaders);
 
-      const finalSubject = personalize(subject);
-      const finalHtml = personalize(template);
+        const attachments = fileInfo ? [
+          {
+            filename: fileInfo.name,
+            content: fileInfo.data.split("base64,")[1],
+            encoding: 'base64'
+          }
+        ] : [];
 
-      const attachments = fileInfo ? [
-        {
-          filename: fileInfo.name,
-          content: fileInfo.data.split("base64,")[1],
-          encoding: 'base64'
+        try {
+          await sendMail({
+            to: email,
+            subject: finalSubject,
+            html: finalHtml,
+            attachments,
+            emailUser: emailUser || undefined,
+            emailPass: emailPass || undefined
+          });
+
+          if (statusIdx !== -1) {
+            const colLetter = columnToLetter(statusIdx);
+            await sheets.spreadsheets.values.update({
+              spreadsheetId,
+              range: `'${sheetName}'!${colLetter}${Number(startRow) + i}`,
+              valueInputOption: 'USER_ENTERED',
+              requestBody: { values: [['✅ SENT (AUTO)']] }
+            });
+          }
+          sentCount++;
+        } catch (err) {
+          console.error(`Lỗi gửi tự động cho ${email}:`, err);
         }
-      ] : [];
-
-      try {
-        await sendMail({
-          to: email,
-          subject: finalSubject,
-          html: finalHtml,
-          attachments,
-          emailUser: emailUser || undefined,
-          emailPass: emailPass || undefined
-        });
-
-        const colLetter = columnToLetter(statusIdx);
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `'${sheetName}'!${colLetter}${Number(startRow) + i}`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: { values: [['✅ SENT (AUTO)']] }
-        });
-        sentCount++;
-      } catch (err) {
-        console.error(`Lỗi gửi tự động cho ${email}:`, err);
       }
     }
-  }
 
-  return { message: `Hoàn tất quét ngầm. Đã gửi thêm: ${sentCount} mail.` };
+    return { message: `Hoàn tất quét ngầm. Đã gửi thêm: ${sentCount} mail.` };
+  } catch (err: any) {
+    return { message: `Lỗi kết nối Sheet: ${err.message}` };
+  }
 }

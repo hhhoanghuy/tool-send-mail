@@ -1,46 +1,16 @@
 import { NextResponse } from 'next/server';
-import { sendMail, formatEmailBody, replacePlaceholders } from '@/lib/google';
+import { sendMail, personalizeContent } from '@/lib/google';
 
 export async function POST(request: Request) {
   try {
-    const { recipient, subject, template, data, fileData, fileName, emailUser, emailPass } = await request.json();
+    const { recipient, subject, template, data, headers, fileData, fileName, emailUser, emailPass } = await request.json();
 
-    const personalize = (text: string | null | undefined) => {
-      if (!text) return '';
-      
-      // Hàm loại bỏ dấu tiếng Việt và ký tự đặc biệt để so khớp chuẩn xác
-      const slugify = (str: string) => {
-        return str
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[đĐ]/g, m => m === 'đ' ? 'd' : 'D')
-          .replace(/[^a-z0-9]/g, '');
-      };
+    // Nếu đã có data và headers truyền vào, ta sẽ cá nhân hóa một lần nữa (phòng trường hợp page.tsx chưa làm)
+    // Nếu subject/template đã được cá nhân hóa rồi (không còn {{}}), hàm này sẽ trả về nguyên bản.
+    const finalSubject = data && headers ? personalizeContent(subject, data, headers) : subject;
+    const finalHtml = data && headers ? personalizeContent(template, data, headers) : template;
 
-      return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-        const cleanP1 = p1.replace(/<[^>]*>?/gm, '')
-                          .replace(/&nbsp;/g, ' ')
-                          .replace(/&amp;/g, '&')
-                          .replace(/&lt;/g, '<')
-                          .replace(/&gt;/g, '>');
-        const target = slugify(cleanP1);
-        
-        if (!data || typeof data !== 'object') return match;
-
-        const key = Object.keys(data).find(k => slugify(k) === target);
-
-        if (key && data[key] !== undefined && data[key] !== null) {
-          return String(data[key]);
-        }
-        return match;
-      });
-    };
-
-    const finalSubject = personalize(subject);
-    const finalHtml = personalize(template);
-
-    const success = await sendMail({
+    await sendMail({
       to: recipient,
       subject: finalSubject,
       html: finalHtml,

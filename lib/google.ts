@@ -1,5 +1,8 @@
 import { google } from 'googleapis';
 import nodemailer from 'nodemailer';
+import { slugify, personalizeContent } from './utils';
+
+export { slugify, personalizeContent };
 
 const SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets.readonly',
@@ -19,6 +22,10 @@ export async function sendMail({ to, subject, html, attachments, emailUser, emai
   const user = emailUser || process.env.EMAIL_USER;
   const pass = emailPass || process.env.EMAIL_PASS;
 
+  if (!user || !pass) {
+    throw new Error('Thiếu cấu hình Email gửi (User hoặc Pass)');
+  }
+
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -36,27 +43,4 @@ export async function sendMail({ to, subject, html, attachments, emailUser, emai
   });
 
   return info;
-}
-
-/**
- * Hàm chuẩn hóa nội dung Email (Dùng chung cho cả Thủ công & Tự động)
- */
-export function formatEmailBody(template: string, data: Record<string, any>) {
-  // 1. Thay thế biến {{biến}}
-  let body = template.replace(/{{(.*?)}}/g, (_, key) => {
-    return data[key.trim()] !== undefined ? String(data[key.trim()]) : `{{${key.trim()}}}`;
-  });
-
-  // 2. Xử lý xuống dòng: Chỉ thêm <br> nếu nội dung không phải là HTML (không có thẻ <div> hoặc <p>)
-  if (!body.includes('<div') && !body.includes('<p') && !body.includes('<br')) {
-    body = body.replace(/\n/g, '<br>');
-  }
-
-  return body;
-}
-
-export function replacePlaceholders(template: string, data: Record<string, any>) {
-  return template.replace(/{{(.*?)}}/g, (_, key) => {
-    return data[key.trim()] !== undefined ? String(data[key.trim()]) : `{{${key.trim()}}}`;
-  });
 }
