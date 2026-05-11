@@ -22,7 +22,7 @@ export default function Dashboard() {
   const [emailColumn, setEmailColumn] = useState('');
   const [statusColumn, setStatusColumn] = useState('');
   const [skipSent, setSkipSent] = useState(true);
-  const [startRow, setStartRow] = useState(5);
+  const [startRow, setStartRow] = useState(2);
   const [subject, setSubject] = useState('');
   const [template, setTemplate] = useState('');
   const [fileInfo, setFileInfo] = useState<{ name: string, data: string } | null>(null);
@@ -30,7 +30,6 @@ export default function Dashboard() {
   const [emailPass, setEmailPass] = useState('');
   const [googleCredentials, setGoogleCredentials] = useState('');
   const [autoPilot, setAutoPilot] = useState(false);
-  const [nextScanIn, setNextScanIn] = useState(300);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
@@ -143,12 +142,13 @@ export default function Dashboard() {
     if (!confirm('Bạn có chắc chắn muốn xóa sạch cấu hình không?')) return;
     localStorage.clear();
     setSpreadsheetId(''); setSheetName(''); setHeaders([]);
-    setSubject(''); setTemplate(''); setStartRow(5);
+    setSubject(''); setTemplate(''); setStartRow(2);
     setEmailUser(''); setEmailPass(''); setGoogleCredentials('');
     alert('🗑️ Đã xóa toàn bộ cấu hình!');
   };
 
   const verifyConnection = async () => {
+    if (!emailUser || !emailPass) return alert('Hãy nhập Email và App Password!');
     setIsSending(true);
     try {
       const res = await fetch('/api/config/verify', {
@@ -158,7 +158,7 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        alert('🚀 Kết nối thành công! Một email test đã được gửi đến: ' + emailUser);
+        alert('🚀 Kết nối thành công! Kiểm tra hòm thư của bạn để thấy email test.');
       } else {
         alert('❌ Lỗi: ' + data.error);
       }
@@ -170,6 +170,7 @@ export default function Dashboard() {
   };
 
   const connectToSheet = async () => {
+    if (!spreadsheetId) return alert('Hãy nhập Spreadsheet ID!');
     try {
       const res = await fetch('/api/sheets/headers', {
         method: 'POST',
@@ -189,7 +190,7 @@ export default function Dashboard() {
         const dataJson = await dataRes.json();
         if (dataJson.rows) setRows(dataJson.rows);
 
-        alert('✅ Đã kết nối Google Sheet thành công!');
+        alert('✅ Kết nối Sheet thành công! Hãy chọn cột Email bên dưới.');
       } else {
         alert('❌ Lỗi: ' + (data.error || 'Không thể lấy dữ liệu'));
       }
@@ -200,11 +201,9 @@ export default function Dashboard() {
 
   const startManualCampaign = async () => {
     if (!emailColumn) return alert('Hãy chọn cột Email trước!');
-    if (!confirm(`Hệ thống sẽ quét từ hàng ${startRow} của Tab "${sheetName}". Bắt đầu gửi?`)) return;
+    if (!confirm(`Hệ thống sẽ gửi mail cho hàng loạt dữ liệu từ hàng ${startRow}. Tiếp tục?`)) return;
     
     setIsSending(true); setLogs([]);
-    alert('🚀 Đang bắt đầu chiến dịch gửi mail. Vui lòng theo dõi tiến trình bên phải!');
-
     try {
       const res = await fetch('/api/sheets/data', { 
         method: 'POST', 
@@ -215,7 +214,7 @@ export default function Dashboard() {
       const fetchedRows = data.rows || [];
       
       if (fetchedRows.length === 0) {
-        alert('ℹ️ Không có dữ liệu để gửi (kiểm tra lại Hàng bắt đầu và Tab Name).');
+        alert('ℹ️ Không tìm thấy hàng dữ liệu nào để gửi.');
         setIsSending(false);
         return;
       }
@@ -272,12 +271,12 @@ export default function Dashboard() {
           setLogs(prev => [{ email: recipient, status: result.success ? 'XONG' : 'LỖI' }, ...prev.slice(0, 49)]);
         } catch (e) {
           setProgress(p => ({ ...p, current: i + 1, failed: p.failed + 1 }));
-          setLogs(prev => [{ email: recipient, status: 'LỖI MẠNG' }, ...prev.slice(0, 49)]);
+          setLogs(prev => [{ email: recipient, status: 'LỖI' }, ...prev.slice(0, 49)]);
         }
       }
-      alert('🎉 Hoàn tất chiến dịch gửi mail!');
+      alert('🎉 Đã hoàn tất gửi toàn bộ email!');
     } catch (err: any) { 
-      alert('❌ Đã xảy ra lỗi nghiêm trọng: ' + err.message); 
+      alert('❌ Lỗi: ' + err.message); 
     } finally { 
       setIsSending(false); 
     }
@@ -287,28 +286,28 @@ export default function Dashboard() {
 
   return (
     <main className="container pb-20">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 mt-6 gap-6">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div>
-          <h1 className="text-4xl font-black text-white tracking-tighter flex items-center gap-3">
-            <span className="bg-indigo-600 px-3 py-1 rounded-2xl shadow-lg shadow-indigo-600/40">Mail</span> 
-            Automator <span className="text-indigo-500">Pro</span>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3">
+            <span className="bg-indigo-600 text-white px-3 py-1 rounded-xl">Mail</span> 
+            Automator Pro
           </h1>
-          <p className="text-slate-400 mt-2 font-medium flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${autoPilot ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}></span>
-            {autoPilot ? `Hệ thống đang TỰ ĐỘNG QUÉT` : 'Chế độ gửi thủ công đang sẵn sàng'}
+          <p className="text-slate-500 mt-1 font-medium">
+            Hệ thống gửi Email Marketing chuyên nghiệp từ Google Sheets
           </p>
         </div>
         <div className="flex gap-3">
           <button 
-            className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${autoPilot ? 'bg-rose-600 text-white shadow-rose-600/20' : 'bg-emerald-600 text-white shadow-emerald-600/20'} shadow-lg active:scale-95`}
+            className={`px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${autoPilot ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}`}
             onClick={() => saveConfig(!autoPilot)}
           >
-            {autoPilot ? '🛑 Tắt Tự động' : '🚀 Bật Tự động'}
+            {autoPilot ? '🛑 Tắt AutoPilot' : '🚀 Bật AutoPilot'}
           </button>
         </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left: Input Areas */}
         <div className="lg:col-span-7 space-y-8">
           <EmailConfig 
             emailUser={emailUser} setEmailUser={setEmailUser}
@@ -343,7 +342,8 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="lg:col-span-5 space-y-8">
+        {/* Right: Preview & Stats */}
+        <div className="lg:col-span-5">
           <div className="sticky top-8 space-y-8">
             <EmailPreview 
               subject={subject}
@@ -363,8 +363,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <footer className="mt-20 text-center text-slate-600 text-xs font-medium">
-        Build with ❤️ for High-Performance Email Marketing. v2.1.0
+      <footer className="mt-20 text-center text-slate-400 text-xs font-medium">
+        Build for Productivity. v3.0.0
       </footer>
     </main>
   );

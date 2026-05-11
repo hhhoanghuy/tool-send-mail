@@ -3,7 +3,6 @@
 interface Log {
   email: string;
   status: string;
-  time?: string;
 }
 
 interface LogSectionProps {
@@ -22,64 +21,57 @@ export default function LogSection({ logs, progress }: LogSectionProps) {
   return (
     <section className="glass-card">
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-          <span className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400">📊</span>
+        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <span className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">📊</span>
           Tiến trình & Nhật ký
         </h3>
         {progress.total > 0 && (
-          <span className="text-xs font-black bg-indigo-600 text-white px-2 py-1 rounded">
-            {progress.current}/{progress.total}
+          <span className="text-xs font-bold bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full border border-indigo-100">
+            {progress.current} / {progress.total}
           </span>
         )}
       </div>
 
       {progress.total > 0 && (
         <div className="mb-8 space-y-3">
-          <div className="flex justify-between text-xs font-bold uppercase tracking-wider">
-            <span className="text-slate-400">Tiến độ tổng thể</span>
-            <span className="text-indigo-400">{percent}%</span>
+          <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <span>Tiến độ</span>
+            <span>{percent}%</span>
           </div>
-          <div className="w-full h-3 bg-slate-900/80 rounded-full overflow-hidden border border-slate-800 p-0.5">
+          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-indigo-600 to-emerald-500 rounded-full transition-all duration-500"
+              className="h-full bg-indigo-600 transition-all duration-500"
               style={{ width: `${percent}%` }}
             ></div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-center">
-              <div className="text-[10px] font-black text-emerald-500 uppercase">Thành công</div>
-              <div className="text-xl font-black text-white">{progress.success}</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl text-center">
+              <div className="text-[10px] font-bold text-emerald-600 uppercase">Thành công</div>
+              <div className="text-lg font-black text-slate-800">{progress.success}</div>
             </div>
-            <div className="bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl text-center">
-              <div className="text-[10px] font-black text-rose-500 uppercase">Thất bại</div>
-              <div className="text-xl font-black text-white">{progress.failed}</div>
+            <div className="bg-rose-50 border border-rose-100 p-3 rounded-xl text-center">
+              <div className="text-[10px] font-bold text-rose-600 uppercase">Thất bại</div>
+              <div className="text-lg font-black text-slate-800">{progress.failed}</div>
             </div>
           </div>
         </div>
       )}
 
-      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
         {logs.length === 0 ? (
-          <div className="text-center py-12 text-slate-600">
-            <div className="text-4xl mb-2">📥</div>
-            <p className="text-sm italic">Chưa có hoạt động nào được ghi nhận</p>
+          <div className="text-center py-10 text-slate-400">
+            <p className="text-sm italic">Chưa có hoạt động</p>
           </div>
         ) : (
           logs.map((log, i) => (
             <div 
               key={i} 
-              className="flex justify-between items-center p-3 bg-slate-900/30 border border-slate-800 rounded-xl hover:bg-slate-900/50 transition-all group animate-in slide-in-from-right-2"
+              className="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl"
             >
-              <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  log.status === 'XONG' || log.status === '✅ SENT' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 
-                  log.status === 'BỎ QUA' ? 'bg-amber-500' : 'bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'
-                }`}></div>
-                <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">{log.email}</span>
-              </div>
-              <span className={`text-[10px] font-black px-2 py-1 rounded ${
-                log.status === 'XONG' || log.status === '✅ SENT' ? 'bg-emerald-500/10 text-emerald-500' : 
-                log.status === 'BỎ QUA' ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'
+              <span className="text-xs font-medium text-slate-700 truncate max-w-[150px]">{log.email}</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                log.status === 'XONG' || log.status === '✅ SENT' ? 'bg-emerald-100 text-emerald-700' : 
+                log.status === 'BỎ QUA' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
               }`}>
                 {log.status}
               </span>
@@ -90,9 +82,7 @@ export default function LogSection({ logs, progress }: LogSectionProps) {
 
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
       `}</style>
     </section>
   );
