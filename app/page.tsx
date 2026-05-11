@@ -240,7 +240,24 @@ export default function Dashboard() {
       const data = await res.json();
       const fetchedRows = data.rows || [];
       setRows(fetchedRows);
+      setProgress({ current: 0, total: fetchedRows.length, success: 0, failed: 0 });
       alert('🚀 Bắt đầu chiến dịch gửi mail thủ công...');
+
+      const slugify = (str: string) => {
+        if (!str) return '';
+        return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+      };
+
+      const personalize = (text: string, rowData: any[]) => {
+        if (!text) return '';
+        return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+          const cleanPlaceholder = p1.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+          const target = slugify(cleanPlaceholder);
+          const colIdx = headers.findIndex(h => slugify(h) === target);
+          return colIdx !== -1 && rowData[colIdx] !== undefined ? String(rowData[colIdx]) : match;
+        });
+      };
+
       for (let i = 0; i < fetchedRows.length; i++) {
         const row = fetchedRows[i];
         const emailIdx = headers.indexOf(emailColumn);
