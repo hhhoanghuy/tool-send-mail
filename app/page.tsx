@@ -1,20 +1,17 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { personalizeContent } from '@/lib/utils';
+import dynamic from 'next/dynamic';
+import 'react-quill-new/dist/quill.snow.css';
 
-// Import components
-import EmailConfig from './components/EmailConfig';
-import SheetMapping from './components/SheetMapping';
-import EmailEditor from './components/EmailEditor';
-import EmailPreview from './components/EmailPreview';
-import LogSection from './components/LogSection';
+const ComponentWithNoSSR = dynamic(() => import('react-quill-new'), { 
+  ssr: false,
+  loading: () => <div style={{ height: '300px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px' }}>Đang tải bộ soạn thảo...</div>
+}) as any;
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
   const [editorMode, setEditorMode] = useState<'rich' | 'html'>('rich');
-  
-  // States
   const [spreadsheetId, setSpreadsheetId] = useState('');
   const [sheetName, setSheetName] = useState('');
   const [headers, setHeaders] = useState<string[]>([]);
@@ -22,7 +19,7 @@ export default function Dashboard() {
   const [emailColumn, setEmailColumn] = useState('');
   const [statusColumn, setStatusColumn] = useState('');
   const [skipSent, setSkipSent] = useState(true);
-  const [startRow, setStartRow] = useState(2);
+  const [startRow, setStartRow] = useState(5);
   const [subject, setSubject] = useState('');
   const [template, setTemplate] = useState('');
   const [fileInfo, setFileInfo] = useState<{ name: string, data: string } | null>(null);
@@ -30,12 +27,12 @@ export default function Dashboard() {
   const [emailPass, setEmailPass] = useState('');
   const [googleCredentials, setGoogleCredentials] = useState('');
   const [autoPilot, setAutoPilot] = useState(false);
+  const [nextScanIn, setNextScanIn] = useState(300);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   const [logs, setLogs] = useState<any[]>([]);
   
-  // Refs
   const subjectRef = useRef<HTMLInputElement>(null);
   const quillRef = useRef<any>(null);
   const htmlRef = useRef<HTMLTextAreaElement>(null);
@@ -54,47 +51,70 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true);
-    // 1. Lấy từ LocalStorage
-    const localKeys = ['spreadsheetId', 'sheetName', 'emailColumn', 'statusColumn', 'subject', 'template', 'startRow', 'emailUser', 'emailPass', 'googleCredentials'];
-    localKeys.forEach(key => {
-      const val = localStorage.getItem(key);
-      if (val) {
-        switch(key) {
-          case 'spreadsheetId': setSpreadsheetId(val); break;
-          case 'sheetName': setSheetName(val); break;
-          case 'emailColumn': setEmailColumn(val); break;
-          case 'statusColumn': setStatusColumn(val); break;
-          case 'subject': setSubject(val); break;
-          case 'template': setTemplate(val); break;
-          case 'startRow': setStartRow(Number(val)); break;
-          case 'emailUser': setEmailUser(val); break;
-          case 'emailPass': setEmailPass(val); break;
-          case 'googleCredentials': setGoogleCredentials(val); break;
-        }
-      }
+    // 1. Lấy từ trình duyệt trước (LocalStorage) để người dùng thấy dữ liệu của mình ngay
+    const localData: any = {};
+    ['spreadsheetId', 'sheetName', 'emailColumn', 'statusColumn', 'subject', 'template', 'startRow', 'emailUser', 'emailPass', 'googleCredentials'].forEach(key => {
+      localData[key] = localStorage.getItem(key);
     });
 
+    if (localData.spreadsheetId) setSpreadsheetId(localData.spreadsheetId);
+    if (localData.sheetName) setSheetName(localData.sheetName);
+    if (localData.emailColumn) setEmailColumn(localData.emailColumn);
+    if (localData.statusColumn) setStatusColumn(localData.statusColumn);
+    if (localData.subject) setSubject(localData.subject);
+    if (localData.template) setTemplate(localData.template);
+    if (localData.startRow) setStartRow(Number(localData.startRow));
+    if (localData.emailUser) setEmailUser(localData.emailUser);
+    if (localData.emailPass) setEmailPass(localData.emailPass);
+    if (localData.googleCredentials) setGoogleCredentials(localData.googleCredentials);
+    
     const localHeaders = localStorage.getItem('headers');
     if (localHeaders) {
       try { setHeaders(JSON.parse(localHeaders)); } catch (e) {}
     }
 
-    // 2. Lấy từ Server
+    // 2. Sau đó mới hỏi Server để lấy những gì máy bạn CHƯA CÓ
     fetch('/api/config').then(res => res.json()).then(data => {
-      if (!localStorage.getItem('spreadsheetId') && data.spreadsheetId) setSpreadsheetId(data.spreadsheetId);
-      if (!localStorage.getItem('sheetName') && data.sheetName) setSheetName(data.sheetName);
-      if (!localStorage.getItem('emailColumn') && data.emailColumn) setEmailColumn(data.emailColumn);
-      if (!localStorage.getItem('statusColumn') && data.statusColumn) setStatusColumn(data.statusColumn);
-      if (!localStorage.getItem('subject') && data.subject) setSubject(data.subject);
-      if (!localStorage.getItem('template') && data.template) setTemplate(data.template);
-      if (!localStorage.getItem('startRow') && data.startRow) setStartRow(data.startRow);
-      if (!localStorage.getItem('emailUser') && data.emailUser) setEmailUser(data.emailUser);
-      if (!localStorage.getItem('emailPass') && data.emailPass) setEmailPass(data.emailPass);
-      if (!localStorage.getItem('googleCredentials') && data.googleCredentials) setGoogleCredentials(data.googleCredentials);
+      const setIfEmpty = (setter: any, localVal: any, serverVal: any) => {
+        if (!localVal && serverVal) setter(serverVal);
+      };
+
+      setIfEmpty(setSpreadsheetId, localData.spreadsheetId, data.spreadsheetId);
+      setIfEmpty(setSheetName, localData.sheetName, data.sheetName);
+      setIfEmpty(setEmailColumn, localData.emailColumn, data.emailColumn);
+      setIfEmpty(setStatusColumn, localData.statusColumn, data.statusColumn);
+      setIfEmpty(setSubject, localData.subject, data.subject);
+      setIfEmpty(setTemplate, localData.template, data.template);
+      setIfEmpty(setStartRow, localData.startRow, data.startRow);
+      setIfEmpty(setEmailUser, localData.emailUser, data.emailUser);
+      setIfEmpty(setEmailPass, localData.emailPass, data.emailPass);
+      setIfEmpty(setGoogleCredentials, localData.googleCredentials, data.googleCredentials);
+      
       if (data.fileInfo) setFileInfo(data.fileInfo);
-      if (!localStorage.getItem('headers') && data.headers) setHeaders(data.headers);
+      
+      const localHeaders = localStorage.getItem('headers');
+      if (!localHeaders && data.headers) setHeaders(data.headers);
     });
   }, []);
+
+  useEffect(() => {
+    let timer: any;
+    if (autoPilot && !isSending) {
+      timer = setInterval(() => {
+        setNextScanIn(prev => {
+          if (prev <= 1) { triggerAutoScan(); return 300; }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [autoPilot, isSending]);
+
+  const triggerAutoScan = async () => {
+    const res = await fetch('/api/cron');
+    const data = await res.json();
+    setLogs(prev => [{ email: 'HỆ THỐNG', status: data.message || 'Xong' }, ...prev.slice(0, 9)]);
+  };
 
   const insertPlaceholder = (header: string) => {
     const placeholder = `{{${header}}}`;
@@ -103,7 +123,7 @@ export default function Dashboard() {
       const end = subjectRef.current.selectionEnd || 0;
       const newValue = subject.substring(0, start) + placeholder + subject.substring(end);
       setSubject(newValue);
-    } else {
+    } else if (lastFocused === 'template') {
       if (editorMode === 'rich' && quillRef.current) {
         const quill = quillRef.current.getEditor();
         const range = quill.getSelection();
@@ -122,6 +142,7 @@ export default function Dashboard() {
     const config = { spreadsheetId, sheetName, emailColumn, statusColumn, subject, template, startRow, autoPilot: isAuto, fileInfo, emailUser, emailPass, googleCredentials };
     await fetch('/api/config', { method: 'POST', body: JSON.stringify(config), headers: { 'Content-Type': 'application/json' } });
     
+    // Lưu toàn bộ vào trình duyệt
     localStorage.setItem('spreadsheetId', spreadsheetId);
     localStorage.setItem('sheetName', sheetName);
     localStorage.setItem('emailColumn', emailColumn);
@@ -135,20 +156,25 @@ export default function Dashboard() {
     localStorage.setItem('headers', JSON.stringify(headers));
     
     setAutoPilot(isAuto);
-    alert('✅ Đã lưu cấu hình thành công!');
+    alert(isAuto ? '✅ Đã bật chế độ gửi Tự động!' : '✅ Đã kết nối & Lưu cấu hình thành công!');
   };
 
   const deleteConfig = async () => {
     if (!confirm('Bạn có chắc chắn muốn xóa sạch cấu hình không?')) return;
+    
+    const emptyConfig = { spreadsheetId: '', sheetName: '', emailColumn: '', statusColumn: '', subject: '', template: '', startRow: 5, autoPilot: false, fileInfo: null, emailUser: '', emailPass: '', googleCredentials: '' };
+    await fetch('/api/config', { method: 'POST', body: JSON.stringify(emptyConfig), headers: { 'Content-Type': 'application/json' } });
+    
+    // Xóa sạch LocalStorage
     localStorage.clear();
-    setSpreadsheetId(''); setSheetName(''); setHeaders([]);
-    setSubject(''); setTemplate(''); setStartRow(2);
+    
     setEmailUser(''); setEmailPass(''); setGoogleCredentials('');
+    setSpreadsheetId(''); setSheetName(''); setHeaders([]);
+    setSubject(''); setTemplate(''); setStartRow(5);
     alert('🗑️ Đã xóa toàn bộ cấu hình!');
   };
 
   const verifyConnection = async () => {
-    if (!emailUser || !emailPass) return alert('Hãy nhập Email và App Password!');
     setIsSending(true);
     try {
       const res = await fetch('/api/config/verify', {
@@ -158,19 +184,18 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        alert('🚀 Kết nối thành công! Kiểm tra hòm thư của bạn để thấy email test.');
+        alert('🚀 Tuyệt vời! Cấu hình của bạn hoàn toàn chính xác.\nHệ thống đã gửi 1 email test đến: ' + emailUser);
       } else {
         alert('❌ Lỗi: ' + data.error);
       }
-    } catch (err: any) {
-      alert('❌ Lỗi kết nối Server: ' + err.message);
+    } catch (err) {
+      alert('❌ Không thể kết nối với Server!');
     } finally {
       setIsSending(false);
     }
   };
 
   const connectToSheet = async () => {
-    if (!spreadsheetId) return alert('Hãy nhập Spreadsheet ID!');
     try {
       const res = await fetch('/api/sheets/headers', {
         method: 'POST',
@@ -180,29 +205,31 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.headers) {
         setHeaders(data.headers);
+        // Lưu ngay ID và Tab vào trình duyệt để F5 không mất
+        localStorage.setItem('spreadsheetId', spreadsheetId);
+        localStorage.setItem('sheetName', sheetName);
         localStorage.setItem('headers', JSON.stringify(data.headers));
         
+        // Lấy thêm 10 dòng đầu để làm dữ liệu xem trước (Preview)
         const dataRes = await fetch('/api/sheets/data', {
           method: 'POST',
-          body: JSON.stringify({ spreadsheetId, range: sheetName, startRow: 2, googleCredentials }),
+          body: JSON.stringify({ spreadsheetId, range: sheetName, startRow: 2, googleCredentials }), // Lấy từ hàng 2
           headers: { 'Content-Type': 'application/json' }
         });
         const dataJson = await dataRes.json();
         if (dataJson.rows) setRows(dataJson.rows);
 
-        alert('✅ Kết nối Sheet thành công! Hãy chọn cột Email bên dưới.');
+        alert('✅ Đã kết nối Sheet thành công!');
       } else {
-        alert('❌ Lỗi: ' + (data.error || 'Không thể lấy dữ liệu'));
+        alert('❌ Lỗi: ' + (data.error || 'Không thể lấy dữ liệu tiêu đề'));
       }
-    } catch (err: any) {
-      alert('❌ Lỗi kết nối: ' + err.message);
+    } catch (err) {
+      alert('❌ Lỗi kết nối đến máy chủ!');
     }
   };
 
   const startManualCampaign = async () => {
-    if (!emailColumn) return alert('Hãy chọn cột Email trước!');
-    if (!confirm(`Hệ thống sẽ gửi mail cho hàng loạt dữ liệu từ hàng ${startRow}. Tiếp tục?`)) return;
-    
+    if (!emailColumn) return alert('Chọn cột Email!');
     setIsSending(true); setLogs([]);
     try {
       const res = await fetch('/api/sheets/data', { 
@@ -212,160 +239,376 @@ export default function Dashboard() {
       });
       const data = await res.json();
       const fetchedRows = data.rows || [];
-      
-      if (fetchedRows.length === 0) {
-        alert('ℹ️ Không tìm thấy hàng dữ liệu nào để gửi.');
-        setIsSending(false);
-        return;
-      }
-
       setRows(fetchedRows);
       setProgress({ current: 0, total: fetchedRows.length, success: 0, failed: 0 });
 
-      const emailIdx = headers.indexOf(emailColumn);
-      const statusIdx = headers.indexOf(statusColumn);
-
+      // Vòng lặp gửi mail thủ công
       for (let i = 0; i < fetchedRows.length; i++) {
         const row = fetchedRows[i];
-        const recipient = row[emailIdx];
-
-        if (!recipient || !recipient.includes('@')) {
-          setProgress(p => ({ ...p, current: i + 1 }));
-          continue;
-        }
-        
+        const emailIdx = headers.indexOf(emailColumn);
+        const statusIdx = headers.indexOf(statusColumn);
+        if (!row[emailIdx]) continue;
         if (skipSent && statusIdx !== -1 && row[statusIdx]?.includes('SENT')) {
           setProgress(p => ({ ...p, current: i + 1 }));
-          setLogs(prev => [{ email: recipient, status: 'BỎ QUA' }, ...prev.slice(0, 49)]);
+          setLogs(prev => [{ email: row[emailIdx], status: 'BỎ QUA' }, ...prev.slice(0, 9)]);
           continue;
         }
+        const slugify = (str: string) => {
+          if (!str) return '';
+          return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+        };
 
-        const finalSubject = personalizeContent(subject, row, headers);
-        const finalHtml = personalizeContent(template, row, headers);
+        const personalize = (text: string, rowData: any[]) => {
+          if (!text) return '';
+          return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
+            // Làm sạch placeholder (bỏ tags HTML nếu có)
+            const cleanPlaceholder = p1.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+            const target = slugify(cleanPlaceholder);
+            const colIdx = headers.findIndex(h => slugify(h) === target);
+            return colIdx !== -1 && rowData[colIdx] !== undefined ? String(rowData[colIdx]) : match;
+          });
+        };
 
-        try {
-          const sendRes = await fetch('/api/send', { 
+        const finalSubject = personalize(subject, row);
+        const finalHtml = personalize(template, row);
+
+        const sendRes = await fetch('/api/send', { 
+          method: 'POST', 
+          body: JSON.stringify({ 
+            recipient: row[headers.indexOf(emailColumn)], 
+            subject: finalSubject, 
+            template: finalHtml, 
+            data: {}, // Đã ánh xạ xong nên không cần data nữa
+            fileData: fileInfo?.data, 
+            fileName: fileInfo?.name,
+            emailUser,
+            emailPass
+          }), 
+          headers: { 'Content-Type': 'application/json' } 
+        });
+        const result = await sendRes.json();
+        if (statusColumn) {
+          const colIndex = headers.indexOf(statusColumn);
+          await fetch('/api/sheets/update', { 
             method: 'POST', 
-            body: JSON.stringify({ 
-              recipient, 
-              subject: finalSubject, 
-              template: finalHtml, 
-              fileData: fileInfo?.data, 
-              fileName: fileInfo?.name,
-              emailUser,
-              emailPass
-            }), 
+            body: JSON.stringify({ spreadsheetId, range: sheetName, row: Number(startRow) + i, column: colIndex, status: result.success ? '✅ SENT' : '❌ FAIL', googleCredentials }), 
             headers: { 'Content-Type': 'application/json' } 
           });
-          const result = await sendRes.json();
-
-          if (statusColumn && statusIdx !== -1) {
-            await fetch('/api/sheets/update', { 
-              method: 'POST', 
-              body: JSON.stringify({ spreadsheetId, range: sheetName, row: Number(startRow) + i, column: statusIdx, status: result.success ? '✅ SENT' : '❌ FAIL', googleCredentials }), 
-              headers: { 'Content-Type': 'application/json' } 
-            });
-          }
-
-          setProgress(p => ({ ...p, current: i + 1, success: result.success ? p.success + 1 : p.success, failed: result.success ? p.failed : p.failed + 1 }));
-          setLogs(prev => [{ email: recipient, status: result.success ? 'XONG' : 'LỖI' }, ...prev.slice(0, 49)]);
-        } catch (e) {
-          setProgress(p => ({ ...p, current: i + 1, failed: p.failed + 1 }));
-          setLogs(prev => [{ email: recipient, status: 'LỖI' }, ...prev.slice(0, 49)]);
         }
+        setProgress(p => ({ ...p, current: i + 1, success: result.success ? p.success + 1 : p.success, failed: result.success ? p.failed : p.failed + 1 }));
+        setLogs(prev => [{ email: row[emailIdx], status: result.success ? 'XONG' : 'LỖI' }, ...prev.slice(0, 9)]);
       }
-      alert('🎉 Đã hoàn tất gửi toàn bộ email!');
-    } catch (err: any) { 
-      alert('❌ Lỗi: ' + err.message); 
-    } finally { 
-      setIsSending(false); 
-    }
+    } catch (err) { alert('Lỗi!'); } finally { setIsSending(false); }
   };
 
-  if (!mounted) return null;
-
   return (
-    <main className="container pb-20">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+    <main className="container" style={{ maxWidth: '1400px', margin: '0 auto', padding: '1rem', background: '#f0f4f8', minHeight: '100vh' }}>
+      <style>{`
+        .ql-container { background: white !important; color: #333 !important; font-size: 16px !important; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+        .ql-toolbar { background: #f8fafc !important; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1); padding: 1.5rem; }
+        .btn-primary { background: #6366f1; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { background: #4f46e5; transform: translateY(-1px); }
+        .toggle-btn { padding: 8px 16px; border: 1px solid #e2e8f0; background: white; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; }
+        .toggle-btn.active { background: #6366f1; color: white; border-color: #6366f1; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border 0.2s; background: white; color: #333; }
+        input:focus { border-color: #6366f1; }
+      `}</style>
+
+      <header className="glass-card" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: autoPilot ? '4px solid #22c55e' : '4px solid #6366f1' }}>
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3">
-            <span className="bg-indigo-600 text-white px-3 py-1 rounded-xl">Mail</span> 
-            Automator Pro
-          </h1>
-          <p className="text-slate-500 mt-1 font-medium">
-            Hệ thống gửi Email Marketing chuyên nghiệp từ Google Sheets
-          </p>
+          <h1 style={{ fontSize: '1.8rem', margin: 0, color: '#1e293b' }}>Mail Automator <span style={{ color: '#6366f1' }}>Pro</span></h1>
+          <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>{autoPilot ? `🟢 TỰ ĐỘNG: Quét sau ${Math.floor(nextScanIn/60)}p ${nextScanIn%60}s` : '⚪ Chế độ thủ công'}</p>
         </div>
-        <div className="flex gap-3">
-          <button 
-            className={`px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${autoPilot ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}`}
-            onClick={() => saveConfig(!autoPilot)}
-          >
-            {autoPilot ? '🛑 Tắt AutoPilot' : '🚀 Bật AutoPilot'}
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="btn-primary" style={{ background: '#94a3b8' }} onClick={() => saveConfig(false)}>Lưu cấu hình</button>
+          <button className="btn-primary" style={{ background: autoPilot ? '#ef4444' : '#22c55e' }} onClick={() => saveConfig(!autoPilot)}>
+            {autoPilot ? 'Tắt Tự động' : 'Bật Tự động'}
           </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left: Input Areas */}
-        <div className="lg:col-span-7 space-y-8">
-          <EmailConfig 
-            emailUser={emailUser} setEmailUser={setEmailUser}
-            emailPass={emailPass} setEmailPass={setEmailPass}
-            googleCredentials={googleCredentials} setGoogleCredentials={setGoogleCredentials}
-            onVerify={verifyConnection}
-            onSave={() => saveConfig(false)}
-            onDelete={deleteConfig}
-            isSending={isSending}
-          />
+      <div className="grid" style={{ gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', display: 'grid' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <section className="glass-card">
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1.2rem', color: '#1e293b' }}>0. Cấu hình Email gửi</h3>
+            <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '0.8rem', display: 'grid' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Email Gmail:</label>
+                <input value={emailUser} onChange={e => setEmailUser(e.target.value)} placeholder="example@gmail.com" style={{ marginTop: '5px' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Mật khẩu ứng dụng:</label>
+                <input type="password" value={emailPass} onChange={e => setEmailPass(e.target.value)} placeholder="xxxx xxxx xxxx xxxx" style={{ marginTop: '5px' }} />
+              </div>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '8px' }}>* Lưu ý: Sử dụng App Password của Google. Nếu để trống sẽ dùng mặc định trong .env</p>
+            
+            <div style={{ marginTop: '1.2rem' }}>
+              <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Google Service Account JSON (Dán nội dung file .json):</label>
+              <textarea 
+                value={googleCredentials} 
+                onChange={e => setGoogleCredentials(e.target.value)} 
+                placeholder='{"type": "service_account", ...}'
+                style={{ marginTop: '5px', height: '80px', fontFamily: 'monospace', fontSize: '0.75rem' }}
+              />
+            </div>
 
-          <SheetMapping 
-            spreadsheetId={spreadsheetId} setSpreadsheetId={setSpreadsheetId}
-            sheetName={sheetName} setSheetName={setSheetName}
-            startRow={startRow} setStartRow={setStartRow}
-            headers={headers}
-            emailColumn={emailColumn} setEmailColumn={setEmailColumn}
-            statusColumn={statusColumn} setStatusColumn={setStatusColumn}
-            onConnect={connectToSheet}
-            onInsertPlaceholder={insertPlaceholder}
-          />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '1rem' }}>
+              <button className="btn-primary" style={{ flex: 1, background: '#10b981' }} onClick={verifyConnection} disabled={isSending}>
+                {isSending ? 'Đang kiểm tra...' : '🔍 Kiểm tra & Xác thực'}
+              </button>
+              <button className="btn-primary" style={{ flex: 1, background: '#6366f1' }} onClick={() => saveConfig(false)}>
+                🔗 Kết nối & Lưu
+              </button>
+              <button className="btn-primary" style={{ flex: 0.5, background: '#ef4444' }} onClick={deleteConfig}>
+                🗑️ Xóa
+              </button>
+            </div>
 
-          <EmailEditor 
-            editorMode={editorMode} setEditorMode={setEditorMode}
-            subject={subject} setSubject={setSubject}
-            template={template} setTemplate={setTemplate}
-            quillRef={quillRef} htmlRef={htmlRef} subjectRef={subjectRef}
-            setLastFocused={setLastFocused}
-            modules={modules}
-            onSend={startManualCampaign}
-            isSending={isSending}
-          />
+            <div style={{ background: '#f0f9ff', padding: '15px', borderRadius: '12px', marginTop: '1.2rem', border: '1px solid #bae6fd' }}>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#0369a1', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                📖 Hướng dẫn cấu hình 5 bước nhanh:
+              </p>
+              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#334155' }}>
+                  <span style={{ minWidth: '20px', height: '20px', background: '#0ea5e9', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>1</span>
+                  <span>Tạo Project & bật <b>Google Sheets API</b> tại <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer" style={{ color: '#0284c7', fontWeight: 600 }}>Google Cloud</a>.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#334155' }}>
+                  <span style={{ minWidth: '20px', height: '20px', background: '#0ea5e9', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>2</span>
+                  <span>Tạo <b>Service Account</b>, tải file JSON và dán nội dung vào ô trên.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#334155' }}>
+                  <span style={{ minWidth: '20px', height: '20px', background: '#0ea5e9', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>3</span>
+                  <span><b>QUAN TRỌNG:</b> Share quyền <b>Viewer</b> file Sheet cho email của Service Account.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#334155' }}>
+                  <span style={{ minWidth: '20px', height: '20px', background: '#0ea5e9', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>4</span>
+                  <span>Lấy <b>App Password</b> Gmail (16 ký tự) tại <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" style={{ color: '#0284c7', fontWeight: 600 }}>đây</a>.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#334155' }}>
+                  <span style={{ minWidth: '20px', height: '20px', background: '#0ea5e9', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>5</span>
+                  <span>Điền thông tin, nhấn <b>Kiểm tra & Xác thực</b> để hệ thống tự động kiểm tra lỗi.</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="glass-card">
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1.2rem', color: '#1e293b' }}>1. Kết nối & Ánh xạ cột</h3>
+            <div className="grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '0.8rem', display: 'grid' }}>
+              <input value={spreadsheetId} onChange={e => setSpreadsheetId(e.target.value)} placeholder="Spreadsheet ID" />
+              <input value={sheetName} onChange={e => setSheetName(e.target.value)} placeholder="Tab Name" />
+              <input type="number" value={startRow} onChange={e => setStartRow(Number(e.target.value))} placeholder="Hàng đầu" />
+            </div>
+            <button className="btn-primary" style={{ width: '100%', marginTop: '1rem' }} onClick={connectToSheet}>Kết nối & Lấy dữ liệu</button>
+            
+            <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '0.8rem', display: 'grid', marginTop: '1.2rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Cột chứa Email:</label>
+                <select value={emailColumn} onChange={e => setEmailColumn(e.target.value)} style={{ marginTop: '5px' }}>
+                  <option value="">-- Chọn cột --</option>
+                  {headers.map((h, i) => h && <option key={i} value={h}>{h}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Cột ghi Trạng thái:</label>
+                <select value={statusColumn} onChange={e => setStatusColumn(e.target.value)} style={{ marginTop: '5px' }}>
+                  <option value="">-- Chọn cột --</option>
+                  {headers.map((h, i) => h && <option key={i} value={h}>{h}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '1.2rem' }}>
+              <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Nhấn để chèn biến nhanh:</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                {headers.map((h, i) => h && <button key={i} onClick={() => insertPlaceholder(h)} style={{ cursor: 'pointer', border: '1px solid #6366f1', background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', fontSize: '0.75rem', padding: '4px 10px', borderRadius: '20px', fontWeight: 500 }}>{h}</button>)}
+              </div>
+            </div>
+          </section>
+
+          <section className="glass-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.1rem', color: '#1e293b', margin: 0 }}>2. Soạn thảo Email</h3>
+              <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden' }}>
+                <button className={`toggle-btn ${editorMode === 'rich' ? 'active' : ''}`} onClick={() => setEditorMode('rich')}>Soạn thảo (Word)</button>
+                <button className={`toggle-btn ${editorMode === 'html' ? 'active' : ''}`} onClick={() => setEditorMode('html')}>Mã HTML</button>
+              </div>
+            </div>
+
+            <input 
+              ref={subjectRef} 
+              onFocus={() => setLastFocused('subject')}
+              value={subject} 
+              onChange={e => setSubject(e.target.value)} 
+              placeholder="Tiêu đề email..." 
+              style={{ marginBottom: '1rem', fontWeight: 600 }} 
+            />
+            
+            <div className="quill-container" onClick={() => setLastFocused('template')} style={{ marginBottom: '1rem' }}>
+              {editorMode === 'rich' ? (
+                mounted ? (
+                  <ComponentWithNoSSR 
+                    ref={quillRef}
+                    theme="snow" 
+                    value={template} 
+                    onChange={setTemplate} 
+                    modules={modules}
+                    placeholder="Nội dung email..."
+                    style={{ height: '300px', marginBottom: '45px' }}
+                  />
+                ) : (
+                  <div style={{ height: '345px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}></div>
+                )
+              ) : (
+                <textarea 
+                  ref={htmlRef}
+                  onFocus={() => setLastFocused('template')}
+                  value={template} 
+                  onChange={e => setTemplate(e.target.value)} 
+                  style={{ height: '345px', fontFamily: 'monospace', fontSize: '0.85rem' }} 
+                  placeholder="Nhập mã HTML tại đây..."
+                />
+              )}
+            </div>
+            
+            <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginTop: '20px' }}>
+              <div style={{ fontWeight: 700, marginBottom: '15px', color: '#1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>👁️</span> Xem trước nội dung
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  Xem dòng thứ: 
+                  <input 
+                    type="number" 
+                    value={previewIndex + 1} 
+                    onChange={e => setPreviewIndex(Math.max(0, Math.min(rows.length - 1, Number(e.target.value) - 1)))}
+                    style={{ width: '60px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                  />
+                  / {rows.length}
+                </div>
+              </div>
+              <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '10px', marginBottom: '10px' }}>
+                  <span style={{ color: '#64748b', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Tiêu đề:</span>
+                  <div style={{ fontWeight: 700, color: '#1e293b' }}>
+                    {(() => {
+                      const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+                      const firstRow = rows[previewIndex] || [];
+                      return subject.replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
+                        const cleanPlaceholder = p1.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ');
+                        const target = slugify(cleanPlaceholder);
+                        const idx = headers.findIndex(h => slugify(h) === target);
+                        return idx !== -1 && firstRow[idx] !== undefined ? String(firstRow[idx]) : match;
+                      });
+                    })()}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Nội dung:</span>
+                  <div 
+                    className="preview-content"
+                    style={{ color: '#334155', lineHeight: '1.6', maxHeight: '300px', overflowY: 'auto' }}
+                    dangerouslySetInnerHTML={{ 
+                      __html: (() => {
+                        const firstRow = rows[previewIndex] || [];
+                        const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+                        
+                        return template.replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
+                          const cleanPlaceholder = p1.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ');
+                          const target = slugify(cleanPlaceholder);
+                          const colIdx = headers.findIndex(h => slugify(h) === target);
+                          return colIdx !== -1 && firstRow[colIdx] !== undefined ? String(firstRow[colIdx]) : match;
+                        });
+                      })()
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ marginTop: '1.5rem', padding: '15px', border: '1px dashed #cbd5e1', borderRadius: '8px', background: '#f8fafc' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <input type="file" style={{ border: 'none', background: 'none', padding: 0 }} onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => setFileInfo({ name: file.name, data: event.target?.result as string });
+                    reader.readAsDataURL(file);
+                  }
+                }} />
+                {fileInfo && <button onClick={() => setFileInfo(null)} style={{ padding: '6px 14px', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>XÓA FILE</button>}
+              </div>
+              {fileInfo && <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#6366f1', fontWeight: 600 }}>📎 Đang đính kèm: {fileInfo.name}</div>}
+            </div>
+            <button className="btn-primary" style={{ width: '100%', background: '#10b981', marginTop: '1.5rem', height: '50px', fontSize: '1rem' }} onClick={startManualCampaign} disabled={isSending}>🚀 GỬI THỦ CÔNG NGAY</button>
+          </section>
         </div>
 
-        {/* Right: Preview & Stats */}
-        <div className="lg:col-span-5">
-          <div className="sticky top-8 space-y-8">
-            <EmailPreview 
-              subject={subject}
-              template={template}
-              rows={rows}
-              headers={headers}
-              previewIndex={previewIndex}
-              setPreviewIndex={setPreviewIndex}
-              fileInfo={fileInfo}
-            />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <section className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', fontSize: '0.9rem', fontWeight: 700, color: '#475569' }}>XEM TRƯỚC (PREVIEW)</div>
+            <div style={{ padding: '25px', background: '#e2e8f0', display: 'flex', justifyContent: 'center', minHeight: '600px' }}>
+              <div style={{ width: '100%', maxWidth: '550px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+                <div style={{ padding: '20px', borderBottom: '1px solid #f1f5f9' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', fontWeight: 600 }}>Tiêu đề:</div>
+                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1.05rem' }}>
+                    {(() => {
+                      const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+                      const firstRow = rows[previewIndex] || [];
+                      return subject.replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
+                        const target = slugify(p1);
+                        const idx = headers.findIndex(h => slugify(h) === target);
+                        return idx !== -1 && firstRow[idx] !== undefined ? String(firstRow[idx]) : match;
+                      });
+                    })() || '...'}
+                  </div>
+                </div>
+                <div 
+                  className="preview-content"
+                  style={{ padding: '25px', fontSize: '1rem', color: '#334155', minHeight: '400px', maxHeight: '600px', overflowY: 'auto', lineHeight: '1.6', background: 'white' }} 
+                  dangerouslySetInnerHTML={{ 
+                    __html: (() => {
+                      const firstRow = rows[previewIndex] || [];
+                      const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
+                      
+                      return template.replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
+                        const cleanPlaceholder = p1.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ');
+                        const target = slugify(cleanPlaceholder);
+                        const colIdx = headers.findIndex(h => slugify(h) === target);
+                        return colIdx !== -1 && firstRow[colIdx] !== undefined ? String(firstRow[colIdx]) : match;
+                      });
+                    })()
+                  }} 
+                />
+                {fileInfo && <div style={{ padding: '12px 25px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', color: '#6366f1', fontSize: '0.85rem', fontWeight: 600 }}>📎 File đính kèm: {fileInfo.name}</div>}
+              </div>
+            </div>
+          </section>
 
-            <LogSection 
-              logs={logs}
-              progress={progress}
-            />
-          </div>
+          <section className="glass-card" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: '#1e293b' }}>Nhật ký hoạt động</h3>
+            <div>
+              {logs.length === 0 && <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Chưa có hoạt động nào...</p>}
+              {logs.map((log, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: '0.85rem' }}>
+                  <span style={{ color: '#475569', fontWeight: 500 }}>{log.email}</span>
+                  <span style={{ 
+                    padding: '2px 8px', 
+                    borderRadius: '4px', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 700, 
+                    background: log.status.toLowerCase().includes('lỗi') || log.status.toLowerCase().includes('fail') ? '#fee2e2' : '#dcfce7',
+                    color: log.status.toLowerCase().includes('lỗi') || log.status.toLowerCase().includes('fail') ? '#ef4444' : '#16a34a'
+                  }}>{log.status}</span>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
-
-      <footer className="mt-20 text-center text-slate-400 text-xs font-medium">
-        Build for Productivity. v3.0.0
-      </footer>
     </main>
   );
 }
