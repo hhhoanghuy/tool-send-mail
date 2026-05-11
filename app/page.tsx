@@ -240,65 +240,55 @@ export default function Dashboard() {
       const data = await res.json();
       const fetchedRows = data.rows || [];
       setRows(fetchedRows);
-      setProgress({ current: 0, total: fetchedRows.length, success: 0, failed: 0 });
-
-      // Vòng lặp gửi mail thủ công
+      alert('🚀 Bắt đầu chiến dịch gửi mail thủ công...');
       for (let i = 0; i < fetchedRows.length; i++) {
         const row = fetchedRows[i];
         const emailIdx = headers.indexOf(emailColumn);
         const statusIdx = headers.indexOf(statusColumn);
-        if (!row[emailIdx]) continue;
+        if (!row[emailIdx]) {
+          setProgress(p => ({ ...p, current: i + 1 }));
+          continue;
+        }
         if (skipSent && statusIdx !== -1 && row[statusIdx]?.includes('SENT')) {
           setProgress(p => ({ ...p, current: i + 1 }));
           setLogs(prev => [{ email: row[emailIdx], status: 'BỎ QUA' }, ...prev.slice(0, 9)]);
           continue;
         }
-        const slugify = (str: string) => {
-          if (!str) return '';
-          return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
-        };
-
-        const personalize = (text: string, rowData: any[]) => {
-          if (!text) return '';
-          return text.replace(/{{([\s\S]*?)}}/g, (match, p1) => {
-            // Làm sạch placeholder (bỏ tags HTML nếu có)
-            const cleanPlaceholder = p1.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-            const target = slugify(cleanPlaceholder);
-            const colIdx = headers.findIndex(h => slugify(h) === target);
-            return colIdx !== -1 && rowData[colIdx] !== undefined ? String(rowData[colIdx]) : match;
-          });
-        };
 
         const finalSubject = personalize(subject, row);
         const finalHtml = personalize(template, row);
 
-        const sendRes = await fetch('/api/send', { 
-          method: 'POST', 
-          body: JSON.stringify({ 
-            recipient: row[headers.indexOf(emailColumn)], 
-            subject: finalSubject, 
-            template: finalHtml, 
-            data: {}, // Đã ánh xạ xong nên không cần data nữa
-            fileData: fileInfo?.data, 
-            fileName: fileInfo?.name,
-            emailUser,
-            emailPass
-          }), 
-          headers: { 'Content-Type': 'application/json' } 
-        });
-        const result = await sendRes.json();
-        if (statusColumn) {
-          const colIndex = headers.indexOf(statusColumn);
-          await fetch('/api/sheets/update', { 
+        try {
+          const sendRes = await fetch('/api/send', { 
             method: 'POST', 
-            body: JSON.stringify({ spreadsheetId, range: sheetName, row: Number(startRow) + i, column: colIndex, status: result.success ? '✅ SENT' : '❌ FAIL', googleCredentials }), 
+            body: JSON.stringify({ 
+              recipient: row[emailIdx], 
+              subject: finalSubject, 
+              template: finalHtml, 
+              fileData: fileInfo?.data, 
+              fileName: fileInfo?.name,
+              emailUser,
+              emailPass
+            }), 
             headers: { 'Content-Type': 'application/json' } 
           });
+          const result = await sendRes.json();
+          if (statusColumn && statusIdx !== -1) {
+            await fetch('/api/sheets/update', { 
+              method: 'POST', 
+              body: JSON.stringify({ spreadsheetId, range: sheetName, row: Number(startRow) + i, column: statusIdx, status: result.success ? '✅ SENT' : '❌ FAIL', googleCredentials }), 
+              headers: { 'Content-Type': 'application/json' } 
+            });
+          }
+          setProgress(p => ({ ...p, current: i + 1, success: result.success ? p.success + 1 : p.success, failed: result.success ? p.failed : p.failed + 1 }));
+          setLogs(prev => [{ email: row[emailIdx], status: result.success ? 'XONG' : 'LỖI' }, ...prev.slice(0, 9)]);
+        } catch (e) {
+          setProgress(p => ({ ...p, current: i + 1, failed: p.failed + 1 }));
+          setLogs(prev => [{ email: row[emailIdx], status: 'LỖI' }, ...prev.slice(0, 9)]);
         }
-        setProgress(p => ({ ...p, current: i + 1, success: result.success ? p.success + 1 : p.success, failed: result.success ? p.failed : p.failed + 1 }));
-        setLogs(prev => [{ email: row[emailIdx], status: result.success ? 'XONG' : 'LỖI' }, ...prev.slice(0, 9)]);
       }
-    } catch (err) { alert('Lỗi!'); } finally { setIsSending(false); }
+      alert('🎉 Đã hoàn tất gửi toàn bộ danh sách mail!');
+    } catch (err: any) { alert('❌ Lỗi: ' + err.message); } finally { setIsSending(false); }
   };
 
   return (
@@ -474,60 +464,7 @@ export default function Dashboard() {
               )}
             </div>
             
-            <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginTop: '20px' }}>
-              <div style={{ fontWeight: 700, marginBottom: '15px', color: '#1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '1.2rem' }}>👁️</span> Xem trước nội dung
-                </div>
-                <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  Xem dòng thứ: 
-                  <input 
-                    type="number" 
-                    value={previewIndex + 1} 
-                    onChange={e => setPreviewIndex(Math.max(0, Math.min(rows.length - 1, Number(e.target.value) - 1)))}
-                    style={{ width: '60px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
-                  />
-                  / {rows.length}
-                </div>
-              </div>
-              <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '10px', marginBottom: '10px' }}>
-                  <span style={{ color: '#64748b', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Tiêu đề:</span>
-                  <div style={{ fontWeight: 700, color: '#1e293b' }}>
-                    {(() => {
-                      const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
-                      const firstRow = rows[previewIndex] || [];
-                      return subject.replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
-                        const cleanPlaceholder = p1.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ');
-                        const target = slugify(cleanPlaceholder);
-                        const idx = headers.findIndex(h => slugify(h) === target);
-                        return idx !== -1 && firstRow[idx] !== undefined ? String(firstRow[idx]) : match;
-                      });
-                    })()}
-                  </div>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Nội dung:</span>
-                  <div 
-                    className="preview-content"
-                    style={{ color: '#334155', lineHeight: '1.6', maxHeight: '300px', overflowY: 'auto' }}
-                    dangerouslySetInnerHTML={{ 
-                      __html: (() => {
-                        const firstRow = rows[previewIndex] || [];
-                        const slugify = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]/g, '');
-                        
-                        return template.replace(/{{([\s\S]*?)}}/g, (match: string, p1: string) => {
-                          const cleanPlaceholder = p1.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ');
-                          const target = slugify(cleanPlaceholder);
-                          const colIdx = headers.findIndex(h => slugify(h) === target);
-                          return colIdx !== -1 && firstRow[colIdx] !== undefined ? String(firstRow[colIdx]) : match;
-                        });
-                      })()
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
+            {/* Đã gỡ bỏ Preview trùng lặp tại đây theo yêu cầu */}
             
             <div style={{ marginTop: '1.5rem', padding: '15px', border: '1px dashed #cbd5e1', borderRadius: '8px', background: '#f8fafc' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
