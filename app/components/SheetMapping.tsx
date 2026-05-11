@@ -106,7 +106,7 @@ export default function SheetMapping({
                 <button 
                   key={i} 
                   onClick={() => onInsertPlaceholder(h)} 
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-bold px-3 py-1.5 rounded-full transition-all"
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-bold px-3 py-1-5 rounded-full transition-all"
                 >
                   {`{{${h}}}`}
                 </button>

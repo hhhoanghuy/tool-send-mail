@@ -43,13 +43,13 @@ export default function EmailEditor({
         </h3>
         <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
           <button 
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${editorMode === 'rich' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-1-5 rounded-lg text-xs font-bold transition-all ${editorMode === 'rich' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             onClick={() => setEditorMode('rich')}
           >
             CHẾ ĐỘ WORD
           </button>
           <button 
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${editorMode === 'html' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-1-5 rounded-lg text-xs font-bold transition-all ${editorMode === 'html' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             onClick={() => setEditorMode('html')}
           >
             CHẾ ĐỘ HTML
